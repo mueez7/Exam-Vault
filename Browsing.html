@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Archive | ExamVault</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .nav-glass {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .filter-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23666'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+
+        select:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .result-row {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .result-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+            padding-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="fixed top-0 w-full z-50 nav-glass">
+        <div class="max-w-7xl mx-auto px-10 h-24 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 bg-white rounded-full"></div>
+                <span class="text-xs font-bold tracking-[0.6em] uppercase">ExamVault</span>
+            </div>
+            <div class="flex gap-10 text-[10px] uppercase tracking-[0.4em] text-gray-400">
+                <a href="#" class="text-white border-b border-white/30 pb-1">Browse</a>
+                <a href="#" class="hover:text-white transition-colors">Support</a>
+                <a href="#" class="hover:text-white transition-colors">Admin</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="pt-48 pb-20 px-10">
+        <div class="max-w-6xl mx-auto">
+            <header class="text-center mb-16">
+                <h2 class="text-blue-500 text-[11px] uppercase tracking-[1.2em] mb-6 opacity-0 reveal-item">Repository
+                    Access</h2>
+                <h1 class="text-6xl md:text-8xl font-bold tracking-tighter opacity-0 reveal-item">Find your <span
+                        class="italic font-light text-gray-500">PYQs instantly.</span></h1>
+            </header>
+
+            <div class="filter-card p-10 rounded-3xl opacity-0 reveal-item">
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="space-y-2">
+                        <label class="text-[10px] uppercase tracking-widest text-gray-500 ml-1">University</label>
+                        <select
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-white/30 transition-all">
+                            <option value="" disabled selected>Select College</option>
+                            <option>Stanford Applied</option>
+                            <option>MIT Engineering</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] uppercase tracking-widest text-gray-500 ml-1">Degree</label>
+                        <select disabled
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-white/30 transition-all">
+                            <option value="" disabled selected>Select Degree</option>
+                            <option>B.Tech</option>
+                            <option>M.Tech</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] uppercase tracking-widest text-gray-500 ml-1">Branch</label>
+                        <select disabled
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-white/30 transition-all">
+                            <option value="" disabled selected>Select Branch</option>
+                            <option>Computer Science</option>
+                            <option>Mechanical</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-[10px] uppercase tracking-widest text-gray-500 ml-1">Semester</label>
+                        <select disabled
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-white/30 transition-all">
+                            <option value="" disabled selected>Select Sem</option>
+                            <option>Semester 04</option>
+                            <option>Semester 06</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] uppercase tracking-widest text-gray-500 ml-1">Subject</label>
+                        <select disabled
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-white/30 transition-all">
+                            <option value="" disabled selected>Select Subject</option>
+                            <option>Operating Systems</option>
+                            <option>Database Logic</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] uppercase tracking-widest text-gray-500 ml-1">Exam Type</label>
+                        <select id="exam-type" disabled
+                            class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-white/30 transition-all">
+                            <option value="" disabled selected>Select Exam</option>
+                            <option value="main">Main Exam</option>
+                            <option value="supp">Supplementary</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="results-area" class="max-w-6xl mx-auto px-10 pb-40 hidden">
+        <div class="flex justify-between items-end mb-10">
+            <h3 class="text-xs uppercase tracking-[0.4em] text-gray-500">Available Resources</h3>
+            <span class="text-[10px] text-gray-700 uppercase tracking-widest">3 Documents Found</span>
+        </div>
+
+        <div class="space-y-4">
+            <div class="result-row flex items-center justify-between py-8 px-4 opacity-0 result-item">
+                <div class="flex items-center gap-8">
+                    <i data-lucide="file-text" class="text-blue-500 w-6 h-6"></i>
+                    <div>
+                        <h4 class="text-2xl font-bold tracking-tighter">2024</h4>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-600">Main Examination / OS-302</p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button
+                        class="px-6 py-3 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all">View</button>
+                    <button
+                        class="px-8 py-3 bg-white text-black rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">Download</button>
+                </div>
+            </div>
+
+            <div class="result-row flex items-center justify-between py-8 px-4 opacity-0 result-item">
+                <div class="flex items-center gap-8">
+                    <i data-lucide="file-text" class="text-blue-500 w-6 h-6"></i>
+                    <div>
+                        <h4 class="text-2xl font-bold tracking-tighter">2023</h4>
+                        <p class="text-[10px] uppercase tracking-widest text-gray-600">Main Examination / OS-302</p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <button
+                        class="px-6 py-3 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-all">View</button>
+                    <button
+                        class="px-8 py-3 bg-white text-black rounded-full text-[10px] font-bold uppercase tracking-widest">Download</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-20 text-center border-t border-white/5 opacity-40">
+        <p class="text-[9px] uppercase tracking-[0.5em]">ExamVault Operations 2026 / Ullal, Karnataka</p>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // Reveal Sequence
+        const tl = gsap.timeline({ defaults: { ease: "expo.out", duration: 1.5 } });
+        tl.to(".reveal-item", { opacity: 1, y: -20, stagger: 0.2, delay: 0.5 });
+
+        // Progressive Select Logic Simulator
+        const selects = document.querySelectorAll('select');
+        selects.forEach((select, index) => {
+            select.addEventListener('change', () => {
+                if (index < selects.length - 1) {
+                    selects[index + 1].disabled = false;
+                    gsap.fromTo(selects[index + 1], { opacity: 0.3 }, { opacity: 1, duration: 0.5 });
+                }
+            });
+        });
+
+        // Trigger Results
+        document.getElementById('exam-type').addEventListener('change', () => {
+            const results = document.getElementById('results-area');
+            results.classList.remove('hidden');
+
+            gsap.to(".result-item", {
+                opacity: 1,
+                x: 0,
+                stagger: 0.1,
+                duration: 1,
+                ease: "power4.out"
+            });
+
+            // Smooth scroll to results
+            window.scrollTo({
+                top: results.offsetTop - 100,
+                behavior: 'smooth'
+            });
+        });
+    </script>
+</body>
+
+</html>

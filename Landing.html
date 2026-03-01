@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamVault | Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            font-family: 'Space Grotesk', sans-serif;
+            overflow: hidden;
+        }
+
+        .nav-glass {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .text-glow {
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="fixed top-0 w-full z-50 nav-glass">
+        <div class="max-w-7xl mx-auto px-8 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 bg-white rounded-full"></div>
+                <span class="text-sm font-semibold tracking-[0.5em] uppercase">ExamVault</span>
+            </div>
+
+            <div class="flex items-center gap-12">
+                <div class="hidden md:flex gap-10 text-[10px] uppercase tracking-[0.4em] text-gray-400">
+                    <a href="#" class="hover:text-white transition-colors">Browse</a>
+                    <a href="#" class="hover:text-white transition-colors">Support</a>
+                </div>
+                <button
+                    class="bg-white text-black text-[10px] font-bold uppercase px-8 py-2.5 tracking-tighter hover:bg-gray-200 transition-all">
+                    Admin Portal
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="h-screen flex flex-col items-center justify-center px-6 text-center">
+
+        <div class="max-w-4xl">
+            <h2 id="hero-tagline" class="text-[11px] uppercase tracking-[1em] text-gray-500 mb-6 opacity-0">
+                Institutional Memory
+            </h2>
+
+            <h1 id="hero-main"
+                class="text-6xl md:text-8xl font-light leading-[1.1] tracking-tight opacity-0 mb-10 text-glow">
+                Preserving <br />
+                <span class="font-semibold italic">Academic Legacy.</span>
+            </h1>
+
+            <p id="hero-subtext"
+                class="text-gray-500 text-lg md:text-xl font-light tracking-wide max-w-2xl mx-auto opacity-0">
+                The definitive digital repository for university intelligence,
+                engineered for clarity and high-speed retrieval.
+            </p>
+        </div>
+
+        <div id="hero-action" class="mt-12 opacity-0">
+            <button
+                class="group flex items-center gap-4 text-[11px] uppercase tracking-[0.5em] text-white/60 hover:text-white transition-all">
+                <span>Enter The Archive</span>
+                <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-2 transition-transform"></i>
+            </button>
+        </div>
+
+    </main>
+
+    <div
+        class="fixed bottom-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/5 blur-[120px] rounded-full pointer-events-none">
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Cinematic Entry Sequence
+        const tl = gsap.timeline({ defaults: { ease: "expo.out" } });
+
+        tl.to("#hero-tagline", {
+            opacity: 1,
+            y: -10,
+            duration: 2,
+            delay: 0.5
+        })
+            .to("#hero-main", {
+                opacity: 1,
+                y: -10,
+                duration: 2
+            }, "-=1.5")
+            .to("#hero-subtext", {
+                opacity: 1,
+                y: -10,
+                duration: 2
+            }, "-=1.5")
+            .to("#hero-action", {
+                opacity: 1,
+                y: 0,
+                duration: 1.5
+            }, "-=1.2");
+    </script>
+</body>
+
+</html>

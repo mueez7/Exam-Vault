@@ -152,4 +152,55 @@ router.post('/upload', requireAdmin, upload.single('file'), async (req, res) => 
     }
 });
 
+// Delete Paper & Storage File Endpoint
+router.delete('/delete/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({ error: 'Paper ID is required.' });
+        }
+
+        // 1. Fetch the file_path first so we can delete from storage
+        const { data: paper, error: fetchError } = await supabase
+            .from('exam_papers')
+            .select('file_path')
+            .eq('id', id)
+            .single();
+
+        if (fetchError) {
+            console.error('Fetch for delete error:', fetchError);
+            return res.status(404).json({ error: 'Paper not found.' });
+        }
+
+        // 2. Delete from Storage (best-effort)
+        if (paper?.file_path) {
+            const { error: storageError } = await supabase.storage
+                .from('exam-vault-assets')
+                .remove([paper.file_path]);
+
+            if (storageError) {
+                console.warn('Storage delete warning (continuing):', storageError.message);
+            }
+        }
+
+        // 3. Delete DB record
+        const { error: dbError } = await supabase
+            .from('exam_papers')
+            .delete()
+            .eq('id', id);
+
+        if (dbError) {
+            console.error('DB delete error:', dbError);
+            return res.status(500).json({ error: 'Failed to delete record from database.', details: dbError.message });
+        }
+
+        return res.status(200).json({ success: true, message: 'Paper deleted successfully.' });
+
+    } catch (err) {
+        console.error('Delete error:', err);
+        return res.status(500).json({ error: 'Internal server error during deletion.' });
+    }
+});
+
 export default router;

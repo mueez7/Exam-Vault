@@ -337,4 +337,113 @@ export async function fetchSavedPapers(): Promise<ExamPaper[]> {
         .filter(Boolean) as ExamPaper[];
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. Admin Management Functions
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetches all exam papers for the admin Data Core view.
+ * Returns full rows including file_path for admin use only.
+ */
+export async function fetchAllPapers(search = ''): Promise<ExamPaper[]> {
+    let query = supabase
+        .from('exam_papers')
+        .select('id, college, degree, branch, year, semester, subject, exam_type, view_count, file_path')
+        .order('view_count', { ascending: false })
+        .limit(500);
+
+    if (search.trim()) {
+        query = query.ilike('subject', `%${search.trim()}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) { console.error('[ExamVault] fetchAllPapers error:', error.message); return []; }
+    return (data as any[]) ?? [];
+}
+
+/**
+ * Deletes an exam paper by calling the backend admin API (uses service role).
+ * The frontend anon key cannot delete rows due to RLS.
+ * @returns true on success, false on failure
+ */
+export async function deletePaper(paperId: string, _filePath: string | null): Promise<boolean> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+        console.error('[ExamVault] deletePaper: no session');
+        return false;
+    }
+
+    const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:5000';
+    try {
+        const res = await fetch(`${backendUrl}/api/admin/delete/${paperId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${session.access_token}` },
+        });
+        const json = await res.json();
+        if (!res.ok) {
+            console.error('[ExamVault] deletePaper backend error:', json.error);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        console.error('[ExamVault] deletePaper fetch error:', err);
+        return false;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Vault Metrics (Insights Tab)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface VaultMetrics {
+    totalPapers: number;
+    totalViews: number;
+    topPapers: { id: string; subject: string; college: string; degree: string; branch: string; year: number; exam_type: string; view_count: number }[];
+    byCollege: { label: string; count: number }[];
+    byDegree: { label: string; count: number }[];
+    byExamType: { label: string; count: number }[];
+    byBranch: { label: string; count: number }[];
+}
+
+export async function fetchVaultMetrics(): Promise<VaultMetrics> {
+    // Fetch all papers with fields needed for aggregation
+    const { data, error } = await supabase
+        .from('exam_papers')
+        .select('id, subject, college, degree, branch, year, exam_type, view_count')
+        .order('view_count', { ascending: false });
+
+    if (error || !data) {
+        console.error('[ExamVault] fetchVaultMetrics error:', error?.message);
+        return { totalPapers: 0, totalViews: 0, topPapers: [], byCollege: [], byDegree: [], byExamType: [], byBranch: [] };
+    }
+
+    const totalPapers = data.length;
+    const totalViews = data.reduce((sum, p) => sum + (p.view_count || 0), 0);
+    const topPapers = data.slice(0, 8);
+
+    const groupBy = (key: string) => {
+        const counts: Record<string, number> = {};
+        data.forEach((p: any) => {
+            const val = p[key] || 'Unknown';
+            counts[val] = (counts[val] || 0) + 1;
+        });
+        return Object.entries(counts)
+            .map(([label, count]) => ({ label, count }))
+            .sort((a, b) => b.count - a.count);
+    };
+
+    return {
+        totalPapers,
+        totalViews,
+        topPapers,
+        byCollege: groupBy('college'),
+        byDegree: groupBy('degree'),
+        byExamType: groupBy('exam_type'),
+        byBranch: groupBy('branch'),
+    };
+}
+
+
+
+
 

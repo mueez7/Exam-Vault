@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useEffect, useRef, useState, useCallback } from
 import { createPortal } from 'react-dom';
 import { FileText, ChevronDown, ArrowDown, Search, Bookmark, Download, Loader2, X, ExternalLink } from 'lucide-react';
 import { fetchFilteredPapers, getSecureDownloadUrl, getSecureViewUrl, incrementViewCount, fetchPaperFilePath, fetchFilterOptions, toggleSavedPaper, fetchSavedPaperIds } from '../lib/supabase-backend';
+import { useAuth } from '../context/AuthContext';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -35,14 +36,26 @@ export default function Archive() {
     const [loadingFilters, setLoadingFilters] = useState(true);
     const [savedIds, setSavedIds] = useState(new Set());
 
-    // Fetch dynamic filter options from DB on mount
+    const { user } = useAuth();
+    const filterOptionsLoaded = useRef(false);
+    const savedIdsLoaded = useRef(false); // guard against repeated auth state fires
+
+    // 1. Load saved IDs only once when user ID becomes available
     useEffect(() => {
+        if (!user?.id || savedIdsLoaded.current) return;
+        savedIdsLoaded.current = true;
+        fetchSavedPaperIds(user.id).then(ids => setSavedIds(ids));
+    }, [user?.id]); // stable primitive — won't fire on object re-renders
+
+    // 2. Load filter options lazily — called on first filter panel open
+    const ensureFilterOptions = useCallback(() => {
+        if (filterOptionsLoaded.current) return;
+        filterOptionsLoaded.current = true;
+        setLoadingFilters(true);
         fetchFilterOptions().then(opts => {
             setFilterOptions(opts);
             setLoadingFilters(false);
         });
-        // Also load which papers the user has already saved
-        fetchSavedPaperIds().then(ids => setSavedIds(ids));
     }, []);
 
     // Lock body scroll when modal is open
@@ -223,7 +236,11 @@ export default function Archive() {
                 <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex flex-col md:flex-row gap-12 lg:gap-24 relative">
 
                     {/* ── Left Sidebar — Filters ── */}
-                    <aside className="w-full md:w-64 shrink-0 mb-12 md:mb-0 filter-text relative z-10 block">
+                    <aside
+                        className="w-full md:w-64 shrink-0 mb-12 md:mb-0 filter-text relative z-10 block"
+                        onMouseEnter={ensureFilterOptions}
+                        onFocus={ensureFilterOptions}
+                    >
                         <div className="sticky top-24 flex flex-col gap-6">
                             <h3 className="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-[0.15em]">Filter Protocol</h3>
 

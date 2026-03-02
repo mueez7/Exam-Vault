@@ -15,27 +15,25 @@ import { supabase } from './supabase';
  * Powers the Browse page dropdowns with real data from the vault.
  */
 export async function fetchFilterOptions(): Promise<Record<string, string[]>> {
-    const columns = ['college', 'degree', 'branch', 'year', 'semester', 'subject', 'exam_type'] as const;
-    const results: Record<string, string[]> = {};
+    // Single query — all filter columns at once. Dedupe client-side.
+    // Previously fired 7 parallel Supabase requests (one per column).
+    const { data, error } = await supabase
+        .from('exam_papers')
+        .select('college, degree, branch, year, semester, subject, exam_type');
 
-    await Promise.all(
-        columns.map(async (col) => {
-            const { data, error } = await supabase
-                .from('exam_papers')
-                .select(col)
-                .order(col, { ascending: true });
+    if (error || !data) return {};
 
-            if (!error && data) {
-                // Dedupe and stringify
-                const unique = [...new Set(data.map((r: any) => String(r[col])).filter(Boolean))];
-                results[col] = unique;
-            } else {
-                results[col] = [];
-            }
-        })
-    );
+    const cols = ['college', 'degree', 'branch', 'year', 'semester', 'subject', 'exam_type'] as const;
+    const result: Record<string, string[]> = {};
 
-    return results;
+    for (const col of cols) {
+        const unique = [
+            ...new Set(data.map((r: any) => String(r[col])).filter(Boolean))
+        ].sort();
+        result[col] = unique;
+    }
+
+    return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -296,16 +294,15 @@ export async function toggleSavedPaper(paperId: string): Promise<boolean | null>
 
 /**
  * Fetches the set of paper IDs saved by the current user.
- * Used to show filled bookmark icons on the Browse page.
+ * Accepts userId directly to avoid an extra supabase.auth.getUser() round-trip.
  */
-export async function fetchSavedPaperIds(): Promise<Set<string>> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return new Set();
+export async function fetchSavedPaperIds(userId: string): Promise<Set<string>> {
+    if (!userId) return new Set();
 
     const { data, error } = await supabase
         .from('saved_papers')
         .select('paper_id')
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
     if (error) { console.error('[ExamVault] fetchSavedPaperIds error:', error.message); return new Set(); }
     return new Set((data ?? []).map((r: any) => r.paper_id));

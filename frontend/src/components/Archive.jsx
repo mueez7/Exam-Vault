@@ -1,20 +1,20 @@
 import React, { useLayoutEffect, useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FileText, ChevronDown, ArrowDown, Search, Bookmark, Download, Loader2, X, ExternalLink } from 'lucide-react';
-import { fetchFilteredPapers, getSecureDownloadUrl, getSecureViewUrl, incrementViewCount, fetchPaperFilePath } from '../lib/supabase-backend';
+import { fetchFilteredPapers, getSecureDownloadUrl, getSecureViewUrl, incrementViewCount, fetchPaperFilePath, fetchFilterOptions, toggleSavedPaper, fetchSavedPaperIds } from '../lib/supabase-backend';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const FILTERS = [
-    { id: 'college', label: 'College', options: ['Stanford', 'MIT', 'Harvard'] },
-    { id: 'degree', label: 'Degree', options: ['B.Tech', 'M.Tech', 'Ph.D'] },
-    { id: 'branch', label: 'Branch', options: ['CS', 'Mech', 'EE', 'Civil'] },
-    { id: 'year', label: 'Year', options: ['2024', '2023', '2022', '2021'] },
-    { id: 'sem', label: 'Sem', options: ['1', '2', '3', '4', '5', '6', '7', '8'] },
-    { id: 'subject', label: 'Subject', options: ['OS', 'Database', 'Networks', 'ML'] },
-    { id: 'examtype', label: 'Exam Type', options: ['Main', 'Supp', 'Mid-Term'] },
+    { id: 'college', label: 'College', dbCol: 'college' },
+    { id: 'degree', label: 'Degree', dbCol: 'degree' },
+    { id: 'branch', label: 'Branch', dbCol: 'branch' },
+    { id: 'year', label: 'Year', dbCol: 'year' },
+    { id: 'sem', label: 'Sem', dbCol: 'semester' },
+    { id: 'subject', label: 'Subject', dbCol: 'subject' },
+    { id: 'examtype', label: 'Exam Type', dbCol: 'exam_type' },
 ];
 
 const EMPTY_FILTERS = {
@@ -31,6 +31,19 @@ export default function Archive() {
     const [viewingPaper, setViewingPaper] = useState(null);
     const [viewUrl, setViewUrl] = useState(null);
     const [loadingView, setLoadingView] = useState(false);
+    const [filterOptions, setFilterOptions] = useState({});
+    const [loadingFilters, setLoadingFilters] = useState(true);
+    const [savedIds, setSavedIds] = useState(new Set());
+
+    // Fetch dynamic filter options from DB on mount
+    useEffect(() => {
+        fetchFilterOptions().then(opts => {
+            setFilterOptions(opts);
+            setLoadingFilters(false);
+        });
+        // Also load which papers the user has already saved
+        fetchSavedPaperIds().then(ids => setSavedIds(ids));
+    }, []);
 
     // Lock body scroll when modal is open
     useEffect(() => {
@@ -160,6 +173,18 @@ export default function Archive() {
         setViewUrl(null);
     };
 
+    const handleBookmark = async (e, paperId) => {
+        e.stopPropagation();
+        const result = await toggleSavedPaper(paperId);
+        if (result === null) return; // error
+        setSavedIds(prev => {
+            const next = new Set(prev);
+            if (result) next.add(paperId);
+            else next.delete(paperId);
+            return next;
+        });
+    };
+
     const handleResetFilters = () => {
         setFilters(EMPTY_FILTERS);
         setPapers([]);
@@ -178,7 +203,7 @@ export default function Archive() {
                         The Archival Vault
                     </h2>
                     <h1 className="hero-elem text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter mb-6 opacity-0 translate-y-10">
-                        Retrieve the <span className="italic font-light text-gray-500">Past.</span>
+                        Download the <span className="italic font-light text-gray-500">PYQs.</span>
                     </h1>
                     <p className="hero-elem text-gray-400 max-w-xl mx-auto text-sm md:text-base tracking-widest leading-relaxed opacity-0 translate-y-10">
                         ACCUMULATING DECADES OF ACADEMIC KNOWLEDGE INTO A SINGLE, HIGH-VELOCITY QUERY ENGINE EXCLUSIVE FOR PROTOCOL MEMBERS.
@@ -228,11 +253,14 @@ export default function Archive() {
                                         <select
                                             value={filters[f.id] ?? ''}
                                             onChange={e => handleFilterChange(f.id, e.target.value)}
+                                            disabled={loadingFilters}
                                             className="appearance-none w-full cursor-pointer bg-[#0a0a0a] hover:bg-[#111] px-4 py-4 pr-10 border-b border-white/5 hover:border-white/20 transition-all text-[9px] md:text-[10px] uppercase tracking-[0.15em] font-bold text-gray-300 focus:outline-none focus:border-blue-500/50 [&>option]:bg-[#050505]"
                                             style={{ WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: 'none' }}
                                         >
-                                            <option value="" className="bg-[#050505] text-gray-500">{f.label}</option>
-                                            {f.options.map(opt => (
+                                            <option value="" className="bg-[#050505] text-gray-500">
+                                                {loadingFilters ? 'Loading...' : f.label}
+                                            </option>
+                                            {(filterOptions[f.dbCol] || []).map(opt => (
                                                 <option key={opt} value={opt} className="bg-[#050505] text-white">{opt}</option>
                                             ))}
                                         </select>
@@ -341,10 +369,11 @@ export default function Archive() {
                                                 </span>
                                                 <div className="flex items-center gap-2">
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); /* future bookmark logic */ }}
-                                                        className="text-gray-600 hover:text-white transition-colors p-1"
+                                                        onClick={(e) => handleBookmark(e, doc.id)}
+                                                        className={`transition-colors p-1 ${savedIds.has(doc.id) ? 'text-blue-400' : 'text-gray-600 hover:text-white'}`}
+                                                        title={savedIds.has(doc.id) ? 'Unsave paper' : 'Save paper'}
                                                     >
-                                                        <Bookmark className="w-4 h-4 fill-current" />
+                                                        <Bookmark className={`w-4 h-4 ${savedIds.has(doc.id) ? 'fill-current' : ''}`} />
                                                     </button>
                                                 </div>
                                             </div>

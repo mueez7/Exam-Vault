@@ -7,6 +7,38 @@
 import { supabase } from './supabase';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 0. fetchFilterOptions — Dynamic dropdown values from real data
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetches distinct values for each filterable column.
+ * Powers the Browse page dropdowns with real data from the vault.
+ */
+export async function fetchFilterOptions(): Promise<Record<string, string[]>> {
+    const columns = ['college', 'degree', 'branch', 'year', 'semester', 'subject', 'exam_type'] as const;
+    const results: Record<string, string[]> = {};
+
+    await Promise.all(
+        columns.map(async (col) => {
+            const { data, error } = await supabase
+                .from('exam_papers')
+                .select(col)
+                .order(col, { ascending: true });
+
+            if (!error && data) {
+                // Dedupe and stringify
+                const unique = [...new Set(data.map((r: any) => String(r[col])).filter(Boolean))];
+                results[col] = unique;
+            } else {
+                results[col] = [];
+            }
+        })
+    );
+
+    return results;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -219,4 +251,90 @@ export async function fetchPaperFilePath(id: string): Promise<string | null> {
     }
     return data?.file_path || null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Saved / Bookmark Functions
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Toggles the saved state of a paper for the current user.
+ * Inserts a row in saved_papers if not saved, deletes it if already saved.
+ * @returns true if now saved, false if now unsaved, null on error
+ */
+export async function toggleSavedPaper(paperId: string): Promise<boolean | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    // Check if already saved
+    const { data: existing } = await supabase
+        .from('saved_papers')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('paper_id', paperId)
+        .single();
+
+    if (existing) {
+        // Already saved → unsave it
+        const { error } = await supabase
+            .from('saved_papers')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('paper_id', paperId);
+
+        if (error) { console.error('[ExamVault] unsave error:', error.message); return null; }
+        return false;
+    } else {
+        // Not saved → save it
+        const { error } = await supabase
+            .from('saved_papers')
+            .insert({ user_id: user.id, paper_id: paperId });
+
+        if (error) { console.error('[ExamVault] save error:', error.message); return null; }
+        return true;
+    }
+}
+
+/**
+ * Fetches the set of paper IDs saved by the current user.
+ * Used to show filled bookmark icons on the Browse page.
+ */
+export async function fetchSavedPaperIds(): Promise<Set<string>> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return new Set();
+
+    const { data, error } = await supabase
+        .from('saved_papers')
+        .select('paper_id')
+        .eq('user_id', user.id);
+
+    if (error) { console.error('[ExamVault] fetchSavedPaperIds error:', error.message); return new Set(); }
+    return new Set((data ?? []).map((r: any) => r.paper_id));
+}
+
+/**
+ * Fetches full paper details for all papers saved by the current user.
+ * Used on the Saved page.
+ */
+export async function fetchSavedPapers(): Promise<ExamPaper[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+        .from('saved_papers')
+        .select(`
+            paper_id,
+            exam_papers (
+                id, college, degree, branch, year, semester, subject, exam_type, view_count
+            )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+    if (error) { console.error('[ExamVault] fetchSavedPapers error:', error.message); return []; }
+
+    return (data ?? [])
+        .map((r: any) => r.exam_papers)
+        .filter(Boolean) as ExamPaper[];
+}
+
 

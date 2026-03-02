@@ -1,16 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, Database, Settings, Search, Plus, FileText, ChevronDown, BarChart2, Users, Download, Eye, Lock, Loader2 } from 'lucide-react';
+import { UploadCloud, Database, Settings, Search, Plus, FileText, BarChart2, Users, Download, Eye, Lock, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const FILTERS = [
-    { id: 'college', label: 'College', options: ['Stanford', 'MIT', 'Harvard'] },
-    { id: 'degree', label: 'Degree', options: ['B.Tech', 'M.Tech', 'Ph.D'] },
-    { id: 'branch', label: 'Branch', options: ['CS', 'Mech', 'EE', 'Civil'] },
-    { id: 'year', label: 'Year', options: ['2024', '2023', '2022', '2021'] },
-    { id: 'sem', label: 'Sem', options: ['1', '2', '3', '4', '5', '6', '7', '8'] },
-    { id: 'subject', label: 'Subject', options: ['OS', 'Database', 'Networks', 'ML'] },
-    { id: 'examtype', label: 'Exam Type', options: ['Main', 'Supp', 'Mid-Term'] },
-];
 
 export default function Admin() {
     // Auth Context
@@ -237,23 +228,25 @@ export default function Admin() {
                                         />
                                     </div>
 
-                                    {FILTERS.map(f => (
+                                    {[
+                                        { id: 'college', label: 'College', placeholder: 'e.g. GM University' },
+                                        { id: 'degree', label: 'Degree', placeholder: 'e.g. B.Tech' },
+                                        { id: 'branch', label: 'Branch', placeholder: 'e.g. CSE' },
+                                        { id: 'year', label: 'Year', placeholder: 'e.g. 2024' },
+                                        { id: 'sem', label: 'Semester', placeholder: 'e.g. 3' },
+                                        { id: 'subject', label: 'Subject', placeholder: 'e.g. Engineering Chemistry' },
+                                        { id: 'examtype', label: 'Exam Type', placeholder: 'e.g. Mid-Term' },
+                                    ].map(f => (
                                         <div key={f.id} className="flex flex-col gap-2">
                                             <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">{f.label}</label>
-                                            <div className="relative">
-                                                <select
-                                                    name={f.id}
-                                                    value={formData[f.id]}
-                                                    onChange={handleInputChange}
-                                                    className="w-full bg-[#111] border border-white/5 hover:border-white/20 focus:border-blue-500 rounded-lg px-4 py-3 text-sm text-gray-400 focus:text-white focus:outline-none appearance-none transition-colors"
-                                                >
-                                                    <option value="" disabled>Select {f.label}</option>
-                                                    {f.options.map(opt => (
-                                                        <option key={opt} value={opt}>{opt}</option>
-                                                    ))}
-                                                </select>
-                                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                                            </div>
+                                            <input
+                                                type="text"
+                                                name={f.id}
+                                                value={formData[f.id]}
+                                                onChange={handleInputChange}
+                                                placeholder={f.placeholder}
+                                                className="w-full bg-[#111] border border-white/5 hover:border-white/20 focus:border-blue-500 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
+                                            />
                                         </div>
                                     ))}
                                 </div>

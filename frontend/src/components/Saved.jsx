@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import { FileText, ArrowDown, Bookmark } from 'lucide-react';
-import { PAPERS } from '../data/mockData';
+const PAPERS = []; // TODO: Replace with real user saved papers data
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 

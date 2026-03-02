@@ -83,10 +83,10 @@ export async function fetchFilteredPapers(
 
     // ── Apply filters (only if value is present) ──
 
-    if (filters.college)  query = query.eq('college',   filters.college);
-    if (filters.degree)   query = query.eq('degree',    filters.degree);
-    if (filters.branch)   query = query.eq('branch',    filters.branch);
-    if (filters.subject)  query = query.eq('subject',   filters.subject);
+    if (filters.college) query = query.eq('college', filters.college);
+    if (filters.degree) query = query.eq('degree', filters.degree);
+    if (filters.branch) query = query.eq('branch', filters.branch);
+    if (filters.subject) query = query.eq('subject', filters.subject);
 
     // year & sem arrive as strings from <select> — coerce to numbers for the integer column
     if (filters.year && filters.year !== '') {
@@ -151,10 +151,27 @@ export async function fetchPaperSummaries(searchTerm: string): Promise<ExamPaper
 export async function getSecureDownloadUrl(filePath: string): Promise<string | null> {
     const { data, error } = await supabase.storage
         .from('exam-vault-assets')
-        .createSignedUrl(filePath, 60);   // 60-second TTL
+        .createSignedUrl(filePath, 60, { download: true });  // Forces Content-Disposition: attachment
 
     if (error || !data?.signedUrl) {
         console.error('[ExamVault] getSecureDownloadUrl error:', error?.message);
+        return null;
+    }
+
+    return data.signedUrl;
+}
+
+/**
+ * Generates a 60-second signed URL for inline PDF viewing (no download header).
+ * Use this for the embedded iframe viewer.
+ */
+export async function getSecureViewUrl(filePath: string): Promise<string | null> {
+    const { data, error } = await supabase.storage
+        .from('exam-vault-assets')
+        .createSignedUrl(filePath, 60);  // No download flag — inline view
+
+    if (error || !data?.signedUrl) {
+        console.error('[ExamVault] getSecureViewUrl error:', error?.message);
         return null;
     }
 
@@ -177,3 +194,29 @@ export async function incrementViewCount(id: string): Promise<void> {
         console.warn('[ExamVault] incrementViewCount error:', error.message);
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. fetchPaperFilePath
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetches the file_path for a specific paper.
+ * Needed because fetchFilteredPapers excludes file_path to save bandwidth.
+ *
+ * @param id UUID of the exam paper
+ * @returns The file_path string or null
+ */
+export async function fetchPaperFilePath(id: string): Promise<string | null> {
+    const { data, error } = await supabase
+        .from('exam_papers')
+        .select('file_path')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('[ExamVault] fetchPaperFilePath error:', error.message);
+        return null;
+    }
+    return data?.file_path || null;
+}
+

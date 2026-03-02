@@ -24,7 +24,7 @@ function App() {
           <div className="w-[80vw] h-[80vh] bg-accentBlue/5 rounded-full blur-[150px] opacity-20"></div>
         </div>
 
-        <main className={`relative z-10 flex-1 flex flex-col min-h-screen ${location.pathname !== '/' ? 'pt-24' : ''}`}>
+        <main className={`relative z-40 flex-1 flex flex-col min-h-screen ${location.pathname !== '/' ? 'pt-24' : ''}`}>
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />

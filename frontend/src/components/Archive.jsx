@@ -1,18 +1,19 @@
-import React, { useLayoutEffect, useRef, useState, useCallback } from 'react';
-import { FileText, ChevronDown, ArrowDown, Search, Bookmark, Download, Loader2 } from 'lucide-react';
-import { fetchFilteredPapers, getSecureDownloadUrl, incrementViewCount } from '../lib/supabase-backend';
+import React, { useLayoutEffect, useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { FileText, ChevronDown, ArrowDown, Search, Bookmark, Download, Loader2, X, ExternalLink } from 'lucide-react';
+import { fetchFilteredPapers, getSecureDownloadUrl, getSecureViewUrl, incrementViewCount, fetchPaperFilePath } from '../lib/supabase-backend';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const FILTERS = [
-    { id: 'college',  label: 'College',   options: ['Stanford', 'MIT', 'Harvard'] },
-    { id: 'degree',   label: 'Degree',    options: ['B.Tech', 'M.Tech', 'Ph.D'] },
-    { id: 'branch',   label: 'Branch',    options: ['CS', 'Mech', 'EE', 'Civil'] },
-    { id: 'year',     label: 'Year',      options: ['2024', '2023', '2022', '2021'] },
-    { id: 'sem',      label: 'Sem',       options: ['1', '2', '3', '4', '5', '6', '7', '8'] },
-    { id: 'subject',  label: 'Subject',   options: ['OS', 'Database', 'Networks', 'ML'] },
+    { id: 'college', label: 'College', options: ['Stanford', 'MIT', 'Harvard'] },
+    { id: 'degree', label: 'Degree', options: ['B.Tech', 'M.Tech', 'Ph.D'] },
+    { id: 'branch', label: 'Branch', options: ['CS', 'Mech', 'EE', 'Civil'] },
+    { id: 'year', label: 'Year', options: ['2024', '2023', '2022', '2021'] },
+    { id: 'sem', label: 'Sem', options: ['1', '2', '3', '4', '5', '6', '7', '8'] },
+    { id: 'subject', label: 'Subject', options: ['OS', 'Database', 'Networks', 'ML'] },
     { id: 'examtype', label: 'Exam Type', options: ['Main', 'Supp', 'Mid-Term'] },
 ];
 
@@ -23,10 +24,25 @@ const EMPTY_FILTERS = {
 export default function Archive() {
     const container = useRef(null);
     const [filters, setFilters] = useState(EMPTY_FILTERS);
-    const [papers, setPapers]   = useState([]);
+    const [papers, setPapers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [fetched, setFetched] = useState(false);
     const [downloading, setDownloading] = useState(null);
+    const [viewingPaper, setViewingPaper] = useState(null);
+    const [viewUrl, setViewUrl] = useState(null);
+    const [loadingView, setLoadingView] = useState(false);
+
+    // Lock body scroll when modal is open
+    useEffect(() => {
+        if (viewingPaper) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'auto'; // or '' 
+        }
+        return () => {
+            document.body.style.overflow = 'auto'; // Reset on unmount
+        };
+    }, [viewingPaper]);
 
     useLayoutEffect(() => {
         let ctx = gsap.context(() => {
@@ -68,15 +84,80 @@ export default function Archive() {
     }, [filters]);
 
     const handleDownload = async (paper) => {
-        setDownloading(paper.id);
-        incrementViewCount(paper.id); // fire-and-forget
-        const url = await getSecureDownloadUrl(paper.file_path);
-        setDownloading(null);
-        if (url) {
-            window.open(url, '_blank', 'noopener,noreferrer');
-        } else {
-            alert('Could not generate download link. Please try again.');
+        try {
+            setDownloading(paper.id);
+
+            let filePath = paper.file_path;
+            if (!filePath) {
+                filePath = await fetchPaperFilePath(paper.id);
+            }
+
+            if (!filePath) {
+                alert('File path not found for this paper.');
+                return;
+            }
+
+            const url = await getSecureDownloadUrl(filePath);
+            if (!url) {
+                alert('Could not generate download link. Please try again.');
+                return;
+            }
+
+            // Fetch as blob and trigger download directly — no new tab
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = blobUrl;
+            anchor.download = `${paper.subject || 'exam-paper'}.pdf`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error('Download error:', err);
+            alert('An error occurred during download.');
+        } finally {
+            setDownloading(null);
         }
+    };
+
+    const handleViewPaper = async (paper) => {
+        try {
+            setLoadingView(true);
+            setViewingPaper(paper);
+            incrementViewCount(paper.id); // atomic increment
+
+            let filePath = paper.file_path;
+            if (!filePath) {
+                filePath = await fetchPaperFilePath(paper.id);
+            }
+
+            if (!filePath) {
+                alert('Document path not found.');
+                setViewingPaper(null);
+                return;
+            }
+
+            const url = await getSecureViewUrl(filePath);
+            if (url) {
+                setViewUrl(url);
+            } else {
+                alert('Could not generate secure view link.');
+                setViewingPaper(null);
+            }
+        } catch (error) {
+            console.error('View error:', error);
+            alert('An error occurred while opening the document.');
+            setViewingPaper(null);
+        } finally {
+            setLoadingView(false);
+        }
+    };
+
+    const closeViewer = () => {
+        setViewingPaper(null);
+        setViewUrl(null);
     };
 
     const handleResetFilters = () => {
@@ -222,21 +303,29 @@ export default function Archive() {
                                 {papers.map(doc => (
                                     <div
                                         key={doc.id}
-                                        className="group flex flex-col bg-[#050505] border border-white/5 rounded-xl paper-card transition-all duration-300 ease-out cursor-pointer relative"
+                                        onClick={() => handleViewPaper(doc)}
+                                        className="group flex flex-col bg-[#050505] border border-white/5 rounded-xl paper-card transition-all duration-300 ease-out cursor-pointer relative hover:bg-[#0a0a0a]"
                                     >
                                         {/* Thumbnail Area */}
-                                        <div className="w-full aspect-[3/4] bg-[#0a0a0a] relative p-4 flex items-center justify-center border border-transparent border-b-white/5 overflow-hidden rounded-t-xl group-hover:border-white/50 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.15)] transition-all duration-300 ease-out z-10">
+                                        <div className="w-full aspect-[3/4] bg-[#0a0a0a] relative p-4 flex items-center justify-center border border-transparent border-b-white/5 overflow-hidden rounded-t-xl group-hover:border-white/50 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.15)] transition-all duration-300 ease-out z-10 w-full">
+                                            {/* Top right - Loading Indicator */}
+                                            {loadingView && viewingPaper?.id === doc.id && (
+                                                <div className="absolute top-3 right-3 z-20">
+                                                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                                                </div>
+                                            )}
+
                                             <div className="absolute top-3 left-3 bg-[#1a1a1a] text-gray-300 border border-white/5 text-[8px] font-bold px-2 py-1 rounded shadow-md z-10 uppercase tracking-widest">
                                                 PDF
                                             </div>
-                                            <div className="w-[65%] h-[80%] bg-[#111] border border-white/5 rounded-lg flex items-center justify-center">
-                                                <FileText className="w-8 h-8 text-white/10" />
+                                            <div className="w-[65%] h-[80%] bg-[#111] border border-white/5 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-500 ease-out">
+                                                <FileText className="w-8 h-8 text-white/10 group-hover:text-blue-500/30 transition-colors" />
                                             </div>
                                         </div>
 
                                         {/* Card Content */}
                                         <div className="flex flex-col p-4 grow">
-                                            <h4 className="text-[14px] font-bold text-white leading-tight mb-1.5 line-clamp-2 hover:text-blue-400 transition-colors">
+                                            <h4 className="text-[14px] font-bold text-white leading-tight mb-1.5 line-clamp-2 group-hover:text-blue-400 transition-colors">
                                                 {doc.subject}
                                             </h4>
                                             <span className="text-[10px] text-gray-500 font-medium mb-1">
@@ -252,17 +341,9 @@ export default function Archive() {
                                                 </span>
                                                 <div className="flex items-center gap-2">
                                                     <button
-                                                        onClick={() => handleDownload(doc)}
-                                                        disabled={downloading === doc.id}
-                                                        title="Download PDF (60-second signed link)"
-                                                        className="text-gray-600 hover:text-blue-400 transition-colors disabled:opacity-40"
+                                                        onClick={(e) => { e.stopPropagation(); /* future bookmark logic */ }}
+                                                        className="text-gray-600 hover:text-white transition-colors p-1"
                                                     >
-                                                        {downloading === doc.id
-                                                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                                                            : <Download className="w-4 h-4" />
-                                                        }
-                                                    </button>
-                                                    <button className="text-gray-600 hover:text-white transition-colors">
                                                         <Bookmark className="w-4 h-4 fill-current" />
                                                     </button>
                                                 </div>
@@ -276,6 +357,95 @@ export default function Archive() {
 
                 </div>
             </section>
+
+            <PdfViewerModal
+                viewingPaper={viewingPaper}
+                viewUrl={viewUrl}
+                downloading={downloading}
+                onDownload={() => handleDownload(viewingPaper)}
+                onClose={closeViewer}
+            />
         </div>
+    );
+}
+
+/* ── Extracted PDF Viewer Modal (portaled to document.body) ── */
+function PdfViewerModal({ viewingPaper, viewUrl, downloading, onDownload, onClose }) {
+    if (!viewingPaper || !viewUrl) return null;
+    return createPortal(
+        <div
+            className="fixed inset-0 flex flex-col"
+            style={{ zIndex: 99999 }}
+            role="dialog"
+            aria-modal="true"
+        >
+            {/* Dark scrollbar styling scoped to this portal */}
+            <style>{`
+                .pdf-modal-inner ::-webkit-scrollbar { width: 5px; height: 5px; }
+                .pdf-modal-inner ::-webkit-scrollbar-track { background: #111; }
+                .pdf-modal-inner ::-webkit-scrollbar-thumb { background: #333; border-radius: 8px; }
+                .pdf-modal-inner ::-webkit-scrollbar-thumb:hover { background: #555; }
+            `}</style>
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/85 backdrop-blur-md"
+                onClick={onClose}
+            />
+
+            {/* Modal Panel — sits above the backdrop */}
+            <div className="pdf-modal-inner relative flex flex-col w-full h-full max-w-6xl mx-auto my-6 pointer-events-none">
+                {/* Inner box with pointer-events re-enabled */}
+                <div className="pointer-events-auto flex flex-col w-full h-full bg-[#0d0d0d] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.8)]">
+
+                    {/* ── Header bar ── */}
+                    <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-white/10 bg-[#070707]">
+                        <div className="flex flex-col min-w-0 mr-4">
+                            <h3 className="text-white font-bold text-sm leading-tight truncate">
+                                {viewingPaper.subject}
+                            </h3>
+                            <span className="text-[10px] text-gray-500 font-medium tracking-wider uppercase mt-0.5">
+                                {viewingPaper.degree} • {viewingPaper.branch} • {viewingPaper.year}
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                                onClick={onDownload}
+                                disabled={downloading === viewingPaper.id}
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 shadow-lg"
+                            >
+                                {downloading === viewingPaper.id
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : <Download className="w-4 h-4" />
+                                }
+                                Download
+                            </button>
+
+                            <button
+                                onClick={onClose}
+                                className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                aria-label="Close Viewer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── PDF Frame ── */}
+                    <div className="flex-1 relative bg-[#111] min-h-0">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Loader2 className="w-8 h-8 text-white/10 animate-spin" />
+                        </div>
+                        <iframe
+                            src={`${viewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                            title={viewingPaper.subject}
+                            className="relative w-full h-full border-none"
+                            style={{ colorScheme: 'dark' }}
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 }

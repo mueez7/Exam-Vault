@@ -38,12 +38,7 @@ export const AuthProvider = ({ children }) => {
     const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || '';
     const isAdmin = user && user.email === adminEmail;
 
-    // DEBUGGING ADMIN FLOW
-    console.log("Current Auth State:", {
-        userEmail: user?.email,
-        expectedAdminEmail: adminEmail,
-        isAdmin: isAdmin
-    });
+    // Removed debugging console log to prevent console spam
 
     return (
         <AuthContext.Provider value={{

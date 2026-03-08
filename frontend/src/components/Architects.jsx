@@ -2,6 +2,8 @@ import React, { useLayoutEffect, useRef } from 'react';
 import { Mail, Github, Linkedin } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import mImage from '../assets/M.jpg';
+import sImage from '../assets/S.jpg';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -68,24 +70,24 @@ export default function Architects() {
 
                 <div className="dev-card opacity-0 translate-y-20">
                     <div className="image-frame max-w-[360px]">
-                        <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=800&auto=format&fit=crop"
+                        <img src={mImage}
                             alt="NOVA" />
                     </div>
                     <div className="mt-8">
                         <span className="text-[10px] tracking-[0.5em] text-blue-500 uppercase font-bold mb-4 block">Core Architect</span>
-                        <h3 className="text-7xl font-bold tracking-tighter mb-6">NOVA</h3>
+                        <h3 className="text-7xl font-bold tracking-tighter mb-6">Abdul Mueez</h3>
                         <p className="text-gray-500 text-lg font-light leading-relaxed mb-10 max-w-sm">
                             Engineered the proprietary sharding protocols and core vault infrastructure for sub-second retrieval.
                         </p>
                         <div className="flex flex-col">
                             <a href="mailto:nova@examvault.io" className="contact-row">
-                                <Mail className="w-4 h-4" /> nova@examvault.io
+                                <Mail className="w-4 h-4" /> 1975abdulmueez@gmail.com
                             </a>
-                            <a href="#" className="contact-row">
-                                <Github className="w-4 h-4" /> github.com/nova-vault
+                            <a href="https://github.com/mueez7" className="contact-row">
+                                <Github className="w-4 h-4" /> github.com/Mueez
                             </a>
-                            <a href="#" className="contact-row">
-                                <Linkedin className="w-4 h-4" /> linkedin.com/in/nova-arch
+                            <a href="https://www.linkedin.com/in/abdul-mueez-a1ab53213/" className="contact-row">
+                                <Linkedin className="w-4 h-4" /> linkedin.com/in/Abdul Mueez
                             </a>
                         </div>
                     </div>
@@ -93,24 +95,24 @@ export default function Architects() {
 
                 <div className="dev-card opacity-0 translate-y-20 mt-[15vh]">
                     <div className="image-frame max-w-[360px]">
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=800&auto=format&fit=crop"
+                        <img src={sImage}
                             alt="SOVA" />
                     </div>
                     <div className="mt-8">
                         <span className="text-[10px] tracking-[0.5em] text-pink-500 uppercase font-bold mb-4 block">Experience Lead</span>
-                        <h3 className="text-7xl font-bold tracking-tighter mb-6">SOVA</h3>
+                        <h3 className="text-7xl font-bold tracking-tighter mb-6">Syeda Sara</h3>
                         <p className="text-gray-500 text-lg font-light leading-relaxed mb-10 max-w-sm">
                             Designing high-fidelity interfaces that bridge the gap between human intuition and academic data.
                         </p>
                         <div className="flex flex-col">
                             <a href="mailto:sova@examvault.io" className="contact-row">
-                                <Mail className="w-4 h-4" /> sova@examvault.io
+                                <Mail className="w-4 h-4" /> syedasara2021@gmail.com
                             </a>
-                            <a href="#" className="contact-row">
-                                <Github className="w-4 h-4" /> github.com/sova-ux
+                            <a href="https://github.com/syedasara2021-web" className="contact-row">
+                                <Github className="w-4 h-4" /> github.com/Syeda Sara
                             </a>
-                            <a href="#" className="contact-row">
-                                <Linkedin className="w-4 h-4" /> linkedin.com/in/sova-arch
+                            <a href="https://www.linkedin.com/in/syeda-sara-995838384/" className="contact-row">
+                                <Linkedin className="w-4 h-4" /> linkedin.com/in/Syeda Sara
                             </a>
                         </div>
                     </div>

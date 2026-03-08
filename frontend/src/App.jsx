@@ -17,14 +17,14 @@ function App() {
   return (
     <AuthProvider>
       <div className="bg-[#030303] text-white min-h-screen selection:bg-white/20 font-grotesk overflow-x-hidden relative flex flex-col">
-        <Navbar />
+        {location.pathname !== '/login' && <Navbar />}
 
         {/* Subtle radial gradient as shown in images */}
         <div className="fixed inset-0 pointer-events-none z-0 flex justify-center items-center">
           <div className="w-[80vw] h-[80vh] bg-accentBlue/5 rounded-full blur-[150px] opacity-20"></div>
         </div>
 
-        <main className={`relative z-40 flex-1 flex flex-col min-h-screen ${location.pathname !== '/' ? 'pt-24' : ''}`}>
+        <main className={`relative z-40 flex-1 flex flex-col min-h-screen ${location.pathname !== '/' && location.pathname !== '/login' ? 'pt-24' : ''}`}>
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />

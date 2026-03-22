@@ -1,7 +1,7 @@
-import React, { useLayoutEffect, useEffect, useRef, useState, useCallback } from 'react';
+import React, { useLayoutEffect, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { FileText, ChevronDown, ArrowDown, Search, Bookmark, Download, Loader2, X, ExternalLink } from 'lucide-react';
-import { fetchFilteredPapers, getSecureDownloadUrl, getSecureViewUrl, incrementViewCount, fetchPaperFilePath, fetchFilterOptions, toggleSavedPaper, fetchSavedPaperIds } from '../lib/supabase-backend';
+import { fetchFilteredPapers, getSecureDownloadUrl, getSecureViewUrl, incrementViewCount, fetchPaperFilePath, fetchRawFilterData, toggleSavedPaper, fetchSavedPaperIds } from '../lib/supabase-backend';
 import { useAuth } from '../context/AuthContext';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -32,7 +32,7 @@ export default function Archive() {
     const [viewingPaper, setViewingPaper] = useState(null);
     const [viewUrl, setViewUrl] = useState(null);
     const [loadingView, setLoadingView] = useState(false);
-    const [filterOptions, setFilterOptions] = useState({});
+    const [rawFilterData, setRawFilterData] = useState([]);
     const [loadingFilters, setLoadingFilters] = useState(true);
     const [savedIds, setSavedIds] = useState(new Set());
 
@@ -52,11 +52,34 @@ export default function Archive() {
         if (filterOptionsLoaded.current) return;
         filterOptionsLoaded.current = true;
         setLoadingFilters(true);
-        fetchFilterOptions().then(opts => {
-            setFilterOptions(opts);
+        fetchRawFilterData().then(data => {
+            setRawFilterData(data);
             setLoadingFilters(false);
         });
     }, []);
+
+    // 3. Dynamically compute cascading filter options
+    const filterOptions = useMemo(() => {
+        const result = {};
+        if (!rawFilterData.length) return result;
+
+        for (const filterMeta of FILTERS) {
+            // Apply all OTHER active filters to the raw data
+            const validRows = rawFilterData.filter(row => {
+                for (const otherMeta of FILTERS) {
+                    if (otherMeta.id === filterMeta.id) continue;
+                    const activeVal = filters[otherMeta.id];
+                    if (activeVal && String(row[otherMeta.dbCol]) !== String(activeVal)) {
+                        return false; // Row eliminated by other active filter
+                    }
+                }
+                return true;
+            });
+            // Extract unique values for this filter
+            result[filterMeta.dbCol] = [...new Set(validRows.map(r => String(r[filterMeta.dbCol])).filter(Boolean))].sort();
+        }
+        return result;
+    }, [rawFilterData, filters]);
 
     // Lock body scroll when modal is open
     useEffect(() => {

@@ -1,0 +1,16 @@
+[0m[0m
+[0m[4mX:\GitHub\Exam-Vault\frontend\src\components\Admin.jsx[24m[0m
+[0m  [2m66:8[22m  [33mwarning[39m  React Hook useEffect has a missing dependency: 'metrics'. Either include it or remove the dependency array  [2mreact-hooks/exhaustive-deps[22m[0m
+[0m[0m
+[0m[4mX:\GitHub\Exam-Vault\frontend\src\components\Architects.jsx[24m[0m
+[0m  [2m12:11[22m  [31merror[39m  'scrollTriggerRef' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mX:\GitHub\Exam-Vault\frontend\src\components\Auth.jsx[24m[0m
+[0m   [2m6:10[22m  [31merror[39m  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u            [2mno-unused-vars[22m[0m
+[0m  [2m15:12[22m  [31merror[39m  'success' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  [2mno-unused-vars[22m[0m
+[0m[0m
+[0m[4mX:\GitHub\Exam-Vault\frontend\src\context\AuthContext.jsx[24m[0m
+[0m  [2m55:14[22m  [31merror[39m  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  [2mreact-refresh/only-export-components[22m[0m
+[0m[0m
+[0m[31m[1m✖ 5 problems (4 errors, 1 warning)[22m[39m[0m
+[0m[31m[1m[22m[39m[0m

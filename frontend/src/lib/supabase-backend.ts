@@ -36,6 +36,18 @@ export async function fetchFilterOptions(): Promise<Record<string, string[]>> {
     return result;
 }
 
+/**
+ * Fetches the raw filter dimension rows for client-side cascading filters.
+ */
+export async function fetchRawFilterData(): Promise<any[]> {
+    const { data, error } = await supabase
+        .from('exam_papers')
+        .select('college, degree, branch, year, semester, subject, exam_type');
+
+    if (error || !data) return [];
+    return data;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────

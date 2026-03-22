@@ -38,13 +38,30 @@ export async function fetchFilterOptions(): Promise<Record<string, string[]>> {
 
 /**
  * Fetches the raw filter dimension rows for client-side cascading filters.
+ * Cached in sessionStorage to ensure instant filter loads on all devices.
  */
 export async function fetchRawFilterData(): Promise<any[]> {
+    const cached = sessionStorage.getItem('vault_raw_filters');
+    if (cached) {
+        try {
+            return JSON.parse(cached);
+        } catch (e) {
+            console.error('Cache parsing error:', e);
+        }
+    }
+
     const { data, error } = await supabase
         .from('exam_papers')
         .select('college, degree, branch, year, semester, subject, exam_type');
 
     if (error || !data) return [];
+
+    try {
+        sessionStorage.setItem('vault_raw_filters', JSON.stringify(data));
+    } catch(e) {
+        console.error('Cache set error:', e);
+    }
+
     return data;
 }
 

@@ -99,7 +99,7 @@ export default function Footer() {
 
                     <div className="flex items-center gap-6">
                         <span className="text-[10px] uppercase tracking-[0.4em] text-gray-700 font-black">
-                            Ullal, Karnataka Base
+                            Davanagere, Karnataka Base
                         </span>
                         <div className="w-1.5 h-1.5 bg-gray-600 rounded-full"></div>
                         <span className="text-[10px] uppercase tracking-[0.4em] text-gray-700 font-black flex items-center gap-2 delay-1000">

@@ -69,14 +69,14 @@ export default function Archive() {
                 for (const otherMeta of FILTERS) {
                     if (otherMeta.id === filterMeta.id) continue;
                     const activeVal = filters[otherMeta.id];
-                    if (activeVal && String(row[otherMeta.dbCol]) !== String(activeVal)) {
+                    if (activeVal && String(row[otherMeta.dbCol]).trim() !== String(activeVal).trim()) {
                         return false; // Row eliminated by other active filter
                     }
                 }
                 return true;
             });
             // Extract unique values for this filter
-            result[filterMeta.dbCol] = [...new Set(validRows.map(r => String(r[filterMeta.dbCol])).filter(Boolean))].sort();
+            result[filterMeta.dbCol] = [...new Set(validRows.map(r => String(r[filterMeta.dbCol]).trim()).filter(Boolean))].sort();
         }
         return result;
     }, [rawFilterData, filters]);

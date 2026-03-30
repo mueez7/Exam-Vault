@@ -40,14 +40,19 @@ export async function fetchFilterOptions(): Promise<Record<string, string[]>> {
  * Fetches the raw filter dimension rows for client-side cascading filters.
  * Cached in sessionStorage to ensure instant filter loads on all devices.
  */
+const FILTER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export async function fetchRawFilterData(): Promise<any[]> {
-    const cached = sessionStorage.getItem('vault_raw_filters');
-    if (cached) {
-        try {
-            return JSON.parse(cached);
-        } catch (e) {
-            console.error('Cache parsing error:', e);
+    try {
+        const raw = sessionStorage.getItem('vault_raw_filters');
+        if (raw) {
+            const { ts, data } = JSON.parse(raw);
+            if (Date.now() - ts < FILTER_CACHE_TTL_MS) {
+                return data;
+            }
         }
+    } catch (e) {
+        // ignore stale / corrupt cache
     }
 
     const { data, error } = await supabase
@@ -56,13 +61,20 @@ export async function fetchRawFilterData(): Promise<any[]> {
 
     if (error || !data) return [];
 
+    // Trim all string fields to normalize trailing spaces in subject names etc.
+    const trimmed = data.map((row: any) => {
+        const r: any = {};
+        for (const [k, v] of Object.entries(row)) r[k] = typeof v === 'string' ? v.trim() : v;
+        return r;
+    });
+
     try {
-        sessionStorage.setItem('vault_raw_filters', JSON.stringify(data));
-    } catch(e) {
+        sessionStorage.setItem('vault_raw_filters', JSON.stringify({ ts: Date.now(), data: trimmed }));
+    } catch (e) {
         console.error('Cache set error:', e);
     }
 
-    return data;
+    return trimmed;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -142,10 +154,11 @@ export async function fetchFilteredPapers(
 
     // ── Apply filters (only if value is present) ──
 
-    if (filters.college) query = query.eq('college', filters.college);
-    if (filters.degree) query = query.eq('degree', filters.degree);
-    if (filters.branch) query = query.eq('branch', filters.branch);
-    if (filters.subject) query = query.eq('subject', filters.subject);
+    // Trim all values before filtering so trimmed dropdown selections match untrimmed DB values
+    if (filters.college) query = query.ilike('college', filters.college.toString().trim());
+    if (filters.degree)  query = query.ilike('degree',  filters.degree.toString().trim());
+    if (filters.branch)  query = query.ilike('branch',  filters.branch.toString().trim());
+    if (filters.subject) query = query.ilike('subject', filters.subject.toString().trim());
 
     // year & sem arrive as strings from <select> — coerce to numbers for the integer column
     if (filters.year && filters.year !== '') {
@@ -156,7 +169,7 @@ export async function fetchFilteredPapers(
     }
 
     // Frontend key 'examtype' → DB column 'exam_type'
-    if (filters.examtype) query = query.eq('exam_type', filters.examtype);
+    if (filters.examtype) query = query.ilike('exam_type', filters.examtype.toString().trim());
 
     const { data, error } = await query;
 

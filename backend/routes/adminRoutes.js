@@ -115,21 +115,17 @@ router.post('/upload', requireAdmin, upload.single('file'), async (req, res) => 
         // 2. Insert Metadata into Database using Service Role
         const { data: dbData, error: dbError } = await supabase
             .from('exam_papers')
-            .insert([
-                {
-                    college: college,
-                    degree: degree,
-                    branch: branch,
-                    year: parseInt(year),
-                    semester: parseInt(sem),
-                    subject: subject,
-                    exam_type: examtype,
-                    file_path: filePath,
-                    view_count: 0
-                    // "title" is roughly captured as "subject", or we can append it.
-                    // The schema has: college, degree, branch, year, semester, subject, exam_type, file_path
-                }
-            ])
+            .insert([{
+                college:    college.trim(),
+                degree:     degree.trim(),
+                branch:     branch.trim(),
+                year:       parseInt(year),
+                semester:   parseInt(sem),
+                subject:    subject.trim(),
+                exam_type:  examtype.trim(),
+                file_path:  filePath,
+                view_count: 0
+            }])
             .select();
 
         if (dbError) {
@@ -200,6 +196,41 @@ router.delete('/delete/:id', requireAdmin, async (req, res) => {
     } catch (err) {
         console.error('Delete error:', err);
         return res.status(500).json({ error: 'Internal server error during deletion.' });
+    }
+});
+
+// Normalize string fields across all papers (trim trailing/leading spaces)
+router.post('/normalize', requireAdmin, async (req, res) => {
+    try {
+        const { data: papers, error: fetchErr } = await supabase
+            .from('exam_papers')
+            .select('id, college, degree, branch, subject, exam_type');
+
+        if (fetchErr) return res.status(500).json({ error: fetchErr.message });
+
+        const updates = (papers || []).filter(p =>
+            p.college !== p.college?.trim() ||
+            p.degree  !== p.degree?.trim()  ||
+            p.branch  !== p.branch?.trim()  ||
+            p.subject !== p.subject?.trim() ||
+            p.exam_type !== p.exam_type?.trim()
+        );
+
+        let fixed = 0;
+        for (const p of updates) {
+            await supabase.from('exam_papers').update({
+                college:   p.college?.trim(),
+                degree:    p.degree?.trim(),
+                branch:    p.branch?.trim(),
+                subject:   p.subject?.trim(),
+                exam_type: p.exam_type?.trim(),
+            }).eq('id', p.id);
+            fixed++;
+        }
+
+        res.json({ success: true, checked: papers.length, fixed });
+    } catch (err) {
+        res.status(500).json({ error: 'Normalization failed: ' + err.message });
     }
 });
 

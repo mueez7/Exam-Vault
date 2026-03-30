@@ -1,8 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { UploadCloud, Database, Settings, Search, Plus, FileText, BarChart2, Loader2, Trash2, Eye, Download, X } from 'lucide-react';
+import { UploadCloud, Database, Settings, Search, Plus, FileText, BarChart2, Loader2, Trash2, Eye, Download, X, CheckCircle, ChevronDown, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { fetchAllPapers, deletePaper, getSecureViewUrl, getSecureDownloadUrl, fetchPaperFilePath, fetchFilterOptions, fetchVaultMetrics } from '../lib/supabase-backend';
+import { fetchAllPapers, deletePaper, getSecureViewUrl, getSecureDownloadUrl, fetchPaperFilePath, fetchFilterOptions, fetchVaultMetrics, fetchRawFilterData } from '../lib/supabase-backend';
+
+// ── Fixed exam type options — NEVER free-text ────────────────────────────────
+const EXAM_TYPES = ['IA 1', 'IA 2', 'IA 3', 'Sem End'];
 
 // ── Data Core Filter Config ──────────────────────────────────────────────────
 const ADMIN_FILTERS = [
@@ -13,6 +16,79 @@ const ADMIN_FILTERS = [
     { id: 'examtype', label: 'Exam Type', dbCol: 'exam_type' },
 ];
 
+// ── Smart Select component for cascading upload form ─────────────────────────
+function SmartSelect({ label, value, options, onChange, disabled, placeholder, allowCustom = true }) {
+    const [custom, setCustom] = useState(false);
+    const [customVal, setCustomVal] = useState('');
+
+    const handleSelect = (e) => {
+        if (e.target.value === '__new__') {
+            setCustom(true);
+            onChange('');
+        } else {
+            setCustom(false);
+            onChange(e.target.value);
+        }
+    };
+
+    const handleCustomChange = (e) => {
+        setCustomVal(e.target.value);
+        onChange(e.target.value);
+    };
+
+    // Reset custom mode if options are empty and not yet custom
+    useEffect(() => {
+        if (!custom && value && !options.includes(value)) {
+            // Value came from parent but isn't in options — could be typed value
+        }
+    }, [options]);
+
+    return (
+        <div className="flex flex-col gap-2">
+            <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">{label}</label>
+            {custom ? (
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={customVal}
+                        onChange={handleCustomChange}
+                        placeholder={`Enter ${label.toLowerCase()}...`}
+                        autoFocus
+                        className="flex-1 bg-[#111] border border-blue-500/50 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => { setCustom(false); setCustomVal(''); onChange(''); }}
+                        className="px-3 py-2 text-gray-500 hover:text-white border border-white/5 rounded-lg text-xs transition-colors"
+                        title="Back to list"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            ) : (
+                <div className="relative">
+                    <select
+                        value={value || ''}
+                        onChange={handleSelect}
+                        disabled={disabled}
+                        className="appearance-none w-full cursor-pointer bg-[#111] border border-white/5 hover:border-white/20 focus:border-blue-500 rounded-lg px-4 py-3 pr-9 text-sm text-white focus:outline-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ WebkitAppearance: 'none' }}
+                    >
+                        <option value="">{disabled ? 'Loading…' : placeholder || `Select ${label}`}</option>
+                        {options.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                        {allowCustom && (
+                            <option value="__new__">＋ Add New {label}</option>
+                        )}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function Admin() {
     const { session } = useAuth();
 
@@ -22,12 +98,15 @@ export default function Admin() {
     // ── Upload Form State ─────────────────────────────────────────────────────
     const [file, setFile] = useState(null);
     const [formData, setFormData] = useState({
-        title: '', college: '', degree: '', branch: '',
-        year: '', sem: '', subject: '', examtype: ''
+        college: '', degree: '', branch: '', year: '', sem: '', subject: '', examtype: ''
     });
     const [uploading, setUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState(null);
     const fileInputRef = useRef(null);
+
+    // ── Subject Registry for smart dropdowns ─────────────────────────────────
+    const [registry, setRegistry] = useState([]);
+    const [loadingRegistry, setLoadingRegistry] = useState(false);
 
     // ── Data Core State ───────────────────────────────────────────────────────
     const [papers, setPapers] = useState([]);
@@ -36,7 +115,7 @@ export default function Admin() {
     const [adminFilters, setAdminFilters] = useState({});
     const [filterOptions, setFilterOptions] = useState({});
     const [deletingId, setDeletingId] = useState(null);
-    const [confirmDelete, setConfirmDelete] = useState(null); // paper to confirm delete
+    const [confirmDelete, setConfirmDelete] = useState(null);
     const [viewingPaper, setViewingPaper] = useState(null);
     const [viewUrl, setViewUrl] = useState(null);
     const [adminDownloading, setAdminDownloading] = useState(null);
@@ -45,6 +124,10 @@ export default function Admin() {
     const [metrics, setMetrics] = useState(null);
     const [loadingMetrics, setLoadingMetrics] = useState(false);
 
+    // ── Normalize State ───────────────────────────────────────────────────────
+    const [normalizing, setNormalizing] = useState(false);
+    const [normalizeResult, setNormalizeResult] = useState(null);
+
     // Lock scroll when modal open
     useEffect(() => {
         if (viewingPaper) document.body.style.overflow = 'hidden';
@@ -52,8 +135,12 @@ export default function Admin() {
         return () => { document.body.style.overflow = 'auto'; };
     }, [viewingPaper]);
 
-    // Load papers + filter options when Data Core tab opens
+    // Load data per tab
     useEffect(() => {
+        if (activeTab === 'upload' && registry.length === 0) {
+            setLoadingRegistry(true);
+            fetchRawFilterData().then(data => { setRegistry(data); setLoadingRegistry(false); });
+        }
         if (activeTab === 'manage') {
             setLoadingPapers(true);
             fetchAllPapers('').then(data => { setPapers(data); setLoadingPapers(false); });
@@ -64,6 +151,35 @@ export default function Admin() {
             fetchVaultMetrics().then(m => { setMetrics(m); setLoadingMetrics(false); });
         }
     }, [activeTab]);
+
+    // ── Cascading dropdown options for upload form ────────────────────────────
+    const uploadOptions = useMemo(() => {
+        const f = formData;
+        const filter = (rows, ...checks) => rows.filter(r =>
+            checks.every(([key, val]) => !val || String(r[key]).trim() === String(val).trim())
+        );
+        const unique = (rows, key) => [...new Set(rows.map(r => String(r[key]).trim()).filter(Boolean))].sort();
+
+        const colleges = unique(registry, 'college');
+        const degrees  = unique(filter(registry, ['college', f.college]), 'degree');
+        const branches = unique(filter(registry, ['college', f.college], ['degree', f.degree]), 'branch');
+        const years    = unique(filter(registry, ['college', f.college], ['degree', f.degree], ['branch', f.branch]), 'year');
+        const sems     = unique(filter(registry, ['college', f.college], ['degree', f.degree], ['branch', f.branch], ['year', f.year]), 'semester');
+        const subjects = unique(filter(registry, ['college', f.college], ['degree', f.degree], ['branch', f.branch], ['year', f.year], ['semester', f.sem]), 'subject');
+
+        return { colleges, degrees, branches, years, sems, subjects };
+    }, [registry, formData]);
+
+    const setField = (field) => (value) => {
+        // When a parent field changes, clear all child fields downstream
+        const order = ['college', 'degree', 'branch', 'year', 'sem', 'subject', 'examtype'];
+        const idx = order.indexOf(field);
+        setFormData(prev => {
+            const next = { ...prev, [field]: value };
+            order.slice(idx + 1).forEach(f => { next[f] = ''; });
+            return next;
+        });
+    };
 
     // ── Upload Handlers ───────────────────────────────────────────────────────
     const handleFileChange = (e) => {
@@ -76,21 +192,18 @@ export default function Admin() {
         }
     };
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
     const handleUpload = async (e) => {
         e.preventDefault();
         if (!session?.access_token) { setUploadStatus({ type: 'error', message: 'Authentication session expired.' }); return; }
         if (!file) { setUploadStatus({ type: 'error', message: 'Please select a PDF file first.' }); return; }
-        for (const [key, value] of Object.entries(formData)) {
-            if (!value) { setUploadStatus({ type: 'error', message: `Please fill out the ${key} field.` }); return; }
+        const required = ['college', 'degree', 'branch', 'year', 'sem', 'subject', 'examtype'];
+        for (const key of required) {
+            if (!formData[key]) { setUploadStatus({ type: 'error', message: `Please fill out the ${key} field.` }); return; }
         }
         setUploading(true); setUploadStatus(null);
         const data = new FormData();
         data.append('file', file);
+        data.append('title', formData.subject);
         Object.entries(formData).forEach(([k, v]) => data.append(k, v));
         try {
             const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -99,10 +212,14 @@ export default function Admin() {
             });
             const result = await res.json();
             if (res.ok) {
-                setUploadStatus({ type: 'success', message: 'Document injected successfully to Vault.' });
+                setUploadStatus({ type: 'success', message: `"${formData.subject} — ${formData.examtype}" injected successfully.` });
                 setFile(null);
-                setFormData({ title: '', college: '', degree: '', branch: '', year: '', sem: '', subject: '', examtype: '' });
+                setFormData({ college: formData.college, degree: formData.degree, branch: formData.branch, year: formData.year, sem: formData.sem, subject: '', examtype: '' });
                 if (fileInputRef.current) fileInputRef.current.value = '';
+                // Bust the filter cache so new paper shows up immediately
+                sessionStorage.removeItem('vault_raw_filters');
+                // Refresh registry
+                fetchRawFilterData().then(setRegistry);
             } else {
                 setUploadStatus({ type: 'error', message: result.error || 'Failed to upload.' });
             }
@@ -127,7 +244,7 @@ export default function Admin() {
             if (!val) continue;
             const colMap = { college: 'college', degree: 'degree', branch: 'branch', year: 'year', examtype: 'exam_type' };
             const dbKey = colMap[key];
-            if (dbKey && String(p[dbKey]) !== String(val)) return false;
+            if (dbKey && String(p[dbKey]).trim() !== String(val).trim()) return false;
         }
         return true;
     });
@@ -173,6 +290,30 @@ export default function Admin() {
 
     const closeViewer = () => { setViewingPaper(null); setViewUrl(null); };
 
+    // ── Normalize Handler ─────────────────────────────────────────────────────
+    const handleNormalize = async () => {
+        setNormalizing(true);
+        setNormalizeResult(null);
+        try {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+            const res = await fetch(`${backendUrl}/api/admin/normalize`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            const result = await res.json();
+            if (res.ok) {
+                setNormalizeResult({ type: 'success', message: `Scanned ${result.checked} records — fixed ${result.fixed} with trailing spaces.` });
+                sessionStorage.removeItem('vault_raw_filters');
+            } else {
+                setNormalizeResult({ type: 'error', message: result.error || 'Normalization failed.' });
+            }
+        } catch {
+            setNormalizeResult({ type: 'error', message: 'Network error during normalization.' });
+        } finally {
+            setNormalizing(false);
+        }
+    };
+
     return (
         <div className="flex flex-col w-full bg-[#050505] min-h-screen relative pt-12 text-white">
             <div className="max-w-7xl mx-auto w-full px-6 md:px-12 flex flex-col md:flex-row gap-12 pb-32">
@@ -209,60 +350,153 @@ export default function Admin() {
                         <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div>
                                 <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-2">Ingress Data.</h1>
-                                <p className="text-sm text-gray-500 font-medium tracking-wide">Upload a new academic document into the high-velocity retrieval engine.</p>
+                                <p className="text-sm text-gray-500 font-medium tracking-wide">Upload a new academic document. Select from existing values to ensure consistency.</p>
                             </div>
+
                             <form onSubmit={handleUpload} className="flex flex-col gap-8 max-w-3xl">
                                 {uploadStatus && (
                                     <div className={`p-4 rounded-xl flex items-center gap-3 text-xs font-bold uppercase tracking-widest border ${uploadStatus.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}>
+                                        {uploadStatus.type === 'success' && <CheckCircle className="w-4 h-4 shrink-0" />}
                                         {uploadStatus.message}
                                     </div>
                                 )}
-                                <div
-                                    className={`w-full h-48 rounded-2xl border-2 border-dashed ${file ? 'border-blue-500 bg-blue-500/5' : 'border-white/10 hover:border-blue-500/50 bg-white/[0.02]'} flex flex-col items-center justify-center gap-4 group cursor-pointer transition-colors relative overflow-hidden`}
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf" onChange={handleFileChange} />
-                                    <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    {file ? (
-                                        <>
-                                            <FileText className="w-10 h-10 text-blue-500 relative z-10" />
-                                            <div className="text-center relative z-10 px-4">
-                                                <p className="text-sm font-bold text-white truncate max-w-xs">{file.name}</p>
-                                                <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB • Ready to Inject</p>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <UploadCloud className="w-10 h-10 text-gray-600 group-hover:text-blue-500 transition-colors relative z-10" />
-                                            <div className="text-center relative z-10">
-                                                <p className="text-sm font-bold text-gray-300">CLICK TO BROWSE PDF</p>
-                                                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Accepts PDF Only (Max 50MB)</p>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div className="flex flex-col gap-2 md:col-span-2 lg:col-span-3">
-                                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Document Title</label>
-                                        <input type="text" name="title" value={formData.title} onChange={handleInputChange} placeholder="e.g. Quantum Physics Mid-Term 2024" className="w-full bg-[#111] border border-white/5 hover:border-white/20 focus:border-blue-500 rounded-lg px-4 py-3 text-sm text-white focus:outline-none transition-colors" />
+
+                                {/* ── Step 1: Scope ── */}
+                                <div className="flex flex-col gap-4">
+                                    <p className="text-[10px] uppercase font-black text-blue-500 tracking-[0.3em] flex items-center gap-2">
+                                        <span className="w-4 h-px bg-blue-500/50" />Step 1 — Institution Scope
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <SmartSelect
+                                            label="College"
+                                            value={formData.college}
+                                            options={uploadOptions.colleges}
+                                            onChange={setField('college')}
+                                            disabled={loadingRegistry}
+                                        />
+                                        <SmartSelect
+                                            label="Degree"
+                                            value={formData.degree}
+                                            options={uploadOptions.degrees}
+                                            onChange={setField('degree')}
+                                            disabled={loadingRegistry || !formData.college}
+                                        />
+                                        <SmartSelect
+                                            label="Branch"
+                                            value={formData.branch}
+                                            options={uploadOptions.branches}
+                                            onChange={setField('branch')}
+                                            disabled={loadingRegistry || !formData.degree}
+                                        />
                                     </div>
-                                    {[
-                                        { id: 'college', label: 'College', placeholder: 'e.g. GM University' },
-                                        { id: 'degree', label: 'Degree', placeholder: 'e.g. B.Tech' },
-                                        { id: 'branch', label: 'Branch', placeholder: 'e.g. CSE' },
-                                        { id: 'year', label: 'Year', placeholder: 'e.g. 2024' },
-                                        { id: 'sem', label: 'Semester', placeholder: 'e.g. 3' },
-                                        { id: 'subject', label: 'Subject', placeholder: 'e.g. Engineering Chemistry' },
-                                        { id: 'examtype', label: 'Exam Type', placeholder: 'e.g. Mid-Term' },
-                                    ].map(f => (
-                                        <div key={f.id} className="flex flex-col gap-2">
-                                            <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">{f.label}</label>
-                                            <input type="text" name={f.id} value={formData[f.id]} onChange={handleInputChange} placeholder={f.placeholder}
-                                                className="w-full bg-[#111] border border-white/5 hover:border-white/20 focus:border-blue-500 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none transition-colors" />
-                                        </div>
-                                    ))}
                                 </div>
-                                <button type="submit" disabled={uploading} className="mt-4 bg-white text-black hover:bg-gray-200 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-[0.3em] transition-colors self-start shadow-[0_0_20px_rgba(255,255,255,0.1)] flex items-center gap-2 disabled:opacity-50">
+
+                                {/* ── Step 2: Semester ── */}
+                                <div className="flex flex-col gap-4">
+                                    <p className="text-[10px] uppercase font-black text-blue-500 tracking-[0.3em] flex items-center gap-2">
+                                        <span className="w-4 h-px bg-blue-500/50" />Step 2 — Academic Period
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <SmartSelect
+                                            label="Year"
+                                            value={formData.year}
+                                            options={uploadOptions.years}
+                                            onChange={setField('year')}
+                                            disabled={loadingRegistry || !formData.branch}
+                                            placeholder="Select Year"
+                                        />
+                                        <SmartSelect
+                                            label="Semester"
+                                            value={formData.sem}
+                                            options={uploadOptions.sems.length ? uploadOptions.sems : ['1','2','3','4','5','6','7','8']}
+                                            onChange={setField('sem')}
+                                            disabled={!formData.year}
+                                            allowCustom={false}
+                                            placeholder="Select Semester"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* ── Step 3: Subject & Exam Type ── */}
+                                <div className="flex flex-col gap-4">
+                                    <p className="text-[10px] uppercase font-black text-blue-500 tracking-[0.3em] flex items-center gap-2">
+                                        <span className="w-4 h-px bg-blue-500/50" />Step 3 — Subject & Exam
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <SmartSelect
+                                            label="Subject"
+                                            value={formData.subject}
+                                            options={uploadOptions.subjects}
+                                            onChange={setField('subject')}
+                                            disabled={!formData.sem}
+                                        />
+                                        {/* Exam Type — fixed hardcoded list, no free text */}
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Exam Type</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={formData.examtype}
+                                                    onChange={e => setField('examtype')(e.target.value)}
+                                                    disabled={!formData.subject}
+                                                    className="appearance-none w-full cursor-pointer bg-[#111] border border-white/5 hover:border-white/20 focus:border-blue-500 rounded-lg px-4 py-3 pr-9 text-sm text-white focus:outline-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    style={{ WebkitAppearance: 'none' }}
+                                                >
+                                                    <option value="">Select Exam Type</option>
+                                                    {EXAM_TYPES.map(t => (
+                                                        <option key={t} value={t}>{t}</option>
+                                                    ))}
+                                                </select>
+                                                <ChevronDown className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── Step 4: File Upload ── */}
+                                <div className="flex flex-col gap-4">
+                                    <p className="text-[10px] uppercase font-black text-blue-500 tracking-[0.3em] flex items-center gap-2">
+                                        <span className="w-4 h-px bg-blue-500/50" />Step 4 — PDF File
+                                    </p>
+                                    <div
+                                        className={`w-full h-40 rounded-2xl border-2 border-dashed ${file ? 'border-blue-500 bg-blue-500/5' : 'border-white/10 hover:border-blue-500/50 bg-white/[0.02]'} flex flex-col items-center justify-center gap-3 group cursor-pointer transition-colors relative overflow-hidden`}
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf" onChange={handleFileChange} />
+                                        <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        {file ? (
+                                            <>
+                                                <FileText className="w-8 h-8 text-blue-500 relative z-10" />
+                                                <div className="text-center relative z-10 px-4">
+                                                    <p className="text-sm font-bold text-white truncate max-w-xs">{file.name}</p>
+                                                    <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB • Ready to Inject</p>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UploadCloud className="w-8 h-8 text-gray-600 group-hover:text-blue-500 transition-colors relative z-10" />
+                                                <div className="text-center relative z-10">
+                                                    <p className="text-sm font-bold text-gray-300">CLICK TO BROWSE PDF</p>
+                                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Accepts PDF Only (Max 50MB)</p>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Summary preview */}
+                                {formData.subject && formData.examtype && (
+                                    <div className="flex flex-col gap-1 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                                        <p className="text-[10px] uppercase font-black text-gray-500 tracking-widest mb-2">Upload Preview</p>
+                                        <p className="text-sm font-bold text-white">{formData.subject} <span className="text-blue-400">— {formData.examtype}</span></p>
+                                        <p className="text-[10px] text-gray-500">{formData.college} · {formData.degree} · {formData.branch} · Year {formData.year} · Sem {formData.sem}</p>
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={uploading || !file || !formData.examtype}
+                                    className="mt-2 bg-white text-black hover:bg-gray-200 px-8 py-4 rounded-xl text-xs font-black uppercase tracking-[0.3em] transition-colors self-start shadow-[0_0_20px_rgba(255,255,255,0.1)] flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
                                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                                     {uploading ? 'Processing Ingress...' : 'Inject to Vault'}
                                 </button>
@@ -321,7 +555,6 @@ export default function Admin() {
 
                             {/* Table */}
                             <div className="border border-white/5 rounded-2xl bg-[#080808] overflow-hidden">
-                                {/* Table Header */}
                                 <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-5 py-3 border-b border-white/5 bg-[#050505]">
                                     {['Subject', 'College', 'Degree / Branch', 'Year / Sem', 'Exam Type', 'Actions'].map(h => (
                                         <span key={h} className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-600">{h}</span>
@@ -354,34 +587,14 @@ export default function Admin() {
                                         <span className="text-[10px] text-gray-500 whitespace-nowrap">{paper.year} / S{paper.semester}</span>
                                         <span className="text-[10px] text-gray-500 whitespace-nowrap">{paper.exam_type}</span>
                                         <div className="flex items-center gap-1.5 justify-end">
-                                            <button
-                                                onClick={() => handleViewPaper(paper)}
-                                                title="View PDF"
-                                                className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                                            >
+                                            <button onClick={() => handleViewPaper(paper)} title="View PDF" className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors">
                                                 <Eye className="w-3.5 h-3.5" />
                                             </button>
-                                            <button
-                                                onClick={() => handleAdminDownload(paper)}
-                                                disabled={adminDownloading === paper.id}
-                                                title="Download PDF"
-                                                className="p-1.5 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors disabled:opacity-40"
-                                            >
-                                                {adminDownloading === paper.id
-                                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                    : <Download className="w-3.5 h-3.5" />
-                                                }
+                                            <button onClick={() => handleAdminDownload(paper)} disabled={adminDownloading === paper.id} title="Download PDF" className="p-1.5 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors disabled:opacity-40">
+                                                {adminDownloading === paper.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                                             </button>
-                                            <button
-                                                onClick={() => setConfirmDelete(paper)}
-                                                disabled={deletingId === paper.id}
-                                                title="Delete paper"
-                                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-40"
-                                            >
-                                                {deletingId === paper.id
-                                                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                    : <Trash2 className="w-3.5 h-3.5" />
-                                                }
+                                            <button onClick={() => setConfirmDelete(paper)} disabled={deletingId === paper.id} title="Delete paper" className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-40">
+                                                {deletingId === paper.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                                             </button>
                                         </div>
                                     </div>
@@ -412,10 +625,7 @@ export default function Admin() {
                                         <div key={item.label} className="flex items-center gap-3">
                                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider w-28 shrink-0 truncate">{item.label}</span>
                                             <div className="flex-1 bg-white/5 rounded-full h-1.5 overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full ${color} transition-all duration-700`}
-                                                    style={{ width: `${(item.count / max) * 100}%` }}
-                                                />
+                                                <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: `${(item.count / max) * 100}%` }} />
                                             </div>
                                             <span className="text-[10px] text-gray-500 font-bold w-6 text-right shrink-0">{item.count}</span>
                                         </div>
@@ -424,7 +634,6 @@ export default function Admin() {
 
                                 return (
                                     <>
-                                        {/* KPI Cards */}
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {[
                                                 { label: 'Total Papers', value: metrics.totalPapers, color: 'text-blue-400' },
@@ -439,27 +648,19 @@ export default function Admin() {
                                             ))}
                                         </div>
 
-                                        {/* Most Viewed Papers */}
                                         <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6">
                                             <h3 className="text-[10px] uppercase font-black tracking-[0.25em] text-gray-500 mb-5">Most Viewed Papers</h3>
                                             <div className="flex flex-col gap-3">
-                                                {metrics.topPapers.length === 0 && (
-                                                    <p className="text-xs text-gray-600 font-bold uppercase tracking-widest">No data yet</p>
-                                                )}
+                                                {metrics.topPapers.length === 0 && <p className="text-xs text-gray-600 font-bold uppercase tracking-widest">No data yet</p>}
                                                 {metrics.topPapers.map((p, i) => (
                                                     <div key={p.id} className="flex items-center gap-4">
-                                                        <span className={`text-[10px] font-black w-5 shrink-0 ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-orange-400' : 'text-gray-700'}`}>
-                                                            #{i + 1}
-                                                        </span>
+                                                        <span className={`text-[10px] font-black w-5 shrink-0 ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-orange-400' : 'text-gray-700'}`}>#{i + 1}</span>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-xs font-bold text-white truncate">{p.subject}</p>
                                                             <p className="text-[10px] text-gray-600">{p.college} • {p.degree} • {p.exam_type}</p>
                                                         </div>
                                                         <div className="w-32 bg-white/5 rounded-full h-1.5 overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-blue-500/60 rounded-full transition-all duration-700"
-                                                                style={{ width: `${(p.view_count / maxViews) * 100}%` }}
-                                                            />
+                                                            <div className="h-full bg-blue-500/60 rounded-full transition-all duration-700" style={{ width: `${(p.view_count / maxViews) * 100}%` }} />
                                                         </div>
                                                         <span className="text-[10px] text-blue-400 font-black w-10 text-right">{p.view_count}</span>
                                                     </div>
@@ -467,7 +668,6 @@ export default function Admin() {
                                             </div>
                                         </div>
 
-                                        {/* Breakdown Grids */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {[
                                                 { title: 'Papers by Degree', items: metrics.byDegree, color: 'bg-blue-500/60' },
@@ -487,7 +687,6 @@ export default function Admin() {
                                             ))}
                                         </div>
 
-                                        {/* Refresh Button */}
                                         <button
                                             onClick={() => { setMetrics(null); setLoadingMetrics(true); fetchVaultMetrics().then(m => { setMetrics(m); setLoadingMetrics(false); }); }}
                                             className="self-start text-[10px] text-gray-500 hover:text-white font-bold uppercase tracking-widest border border-white/5 hover:border-white/20 rounded-lg px-4 py-2 transition-colors"
@@ -502,8 +701,42 @@ export default function Admin() {
 
                     {/* ── CONFIG TAB ──────────────────────────────────────────────────────── */}
                     {activeTab === 'settings' && (
-                        <div className="flex flex-col gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="p-8 text-center text-sm border border-white/5 rounded-2xl font-bold tracking-widest bg-white/[0.02] text-gray-500 uppercase">Settings Managed via Core Protocol</div>
+                        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div>
+                                <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-2">Config.</h1>
+                                <p className="text-sm text-gray-500 font-medium tracking-wide">Maintenance tools for the vault database.</p>
+                            </div>
+
+                            {/* Normalize Tool */}
+                            <div className="flex flex-col gap-4 p-6 border border-white/5 rounded-2xl bg-[#080808]">
+                                <div className="flex items-start gap-4">
+                                    <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                                        <Sparkles className="w-5 h-5 text-purple-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm font-black text-white mb-1">Normalize Database</h3>
+                                        <p className="text-xs text-gray-500 leading-relaxed">
+                                            Scans all records and strips trailing/leading spaces from subject names, exam types, college, degree, and branch fields.
+                                            Run this once to fix any inconsistencies from old uploads. New uploads are automatically trimmed.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {normalizeResult && (
+                                    <div className={`p-3 rounded-xl text-xs font-bold uppercase tracking-widest border ${normalizeResult.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'}`}>
+                                        {normalizeResult.message}
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleNormalize}
+                                    disabled={normalizing}
+                                    className="self-start flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {normalizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                    {normalizing ? 'Normalizing...' : 'Run Normalization'}
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -516,9 +749,7 @@ export default function Admin() {
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setConfirmDelete(null)} />
                     <div className="relative bg-[#0d0d0d] border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
                         <h3 className="text-lg font-black text-white mb-2">Delete Paper?</h3>
-                        <p className="text-sm text-gray-400 mb-1">
-                            <span className="text-white font-bold">{confirmDelete.subject}</span>
-                        </p>
+                        <p className="text-sm text-gray-400 mb-1"><span className="text-white font-bold">{confirmDelete.subject}</span></p>
                         <p className="text-xs text-gray-600 mb-6">This will permanently delete the record and its PDF from storage. This cannot be undone.</p>
                         <div className="flex items-center gap-3 justify-end">
                             <button onClick={() => setConfirmDelete(null)} className="px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white border border-white/10 rounded-lg transition-colors">Cancel</button>
@@ -544,11 +775,9 @@ export default function Admin() {
                                         {viewingPaper.degree} • {viewingPaper.branch} • {viewingPaper.year}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                    <button onClick={closeViewer} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
-                                        <X className="w-5 h-5" />
-                                    </button>
-                                </div>
+                                <button onClick={closeViewer} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
                             </div>
                             <div className="flex-1 relative bg-[#111] min-h-0">
                                 <div className="absolute inset-0 flex items-center justify-center">

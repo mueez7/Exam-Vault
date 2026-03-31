@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, ChevronDown, ArrowDown, Search, Bookmark, Download, Loader2, X, ExternalLink } from 'lucide-react';
+import { FileText, ChevronDown, ArrowDown, Search, Bookmark, Download, Loader2, X, ExternalLink, Settings2, ChevronRight } from 'lucide-react';
 import { fetchFilteredPapers, getSecureDownloadUrl, getSecureViewUrl, incrementViewCount, fetchPaperFilePath, fetchRawFilterData, toggleSavedPaper, fetchSavedPaperIds } from '../lib/supabase-backend';
 import { useAuth } from '../context/AuthContext';
 import gsap from 'gsap';
@@ -35,6 +35,7 @@ export default function Archive() {
     const [rawFilterData, setRawFilterData] = useState([]);
     const [loadingFilters, setLoadingFilters] = useState(true);
     const [savedIds, setSavedIds] = useState(new Set());
+    const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
     const { user } = useAuth();
     const filterOptionsLoaded = useRef(false);
@@ -83,7 +84,7 @@ export default function Archive() {
 
     // Lock body scroll when modal is open
     useEffect(() => {
-        if (viewingPaper) {
+        if (viewingPaper || isMobileFilterOpen) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'auto'; // or '' 
@@ -91,7 +92,7 @@ export default function Archive() {
         return () => {
             document.body.style.overflow = 'auto'; // Reset on unmount
         };
-    }, [viewingPaper]);
+    }, [viewingPaper, isMobileFilterOpen]);
 
     useLayoutEffect(() => {
         let ctx = gsap.context(() => {
@@ -130,6 +131,16 @@ export default function Archive() {
             { opacity: 0, x: -10 },
             { opacity: 1, x: 0, stagger: 0.05, duration: 0.6, ease: 'power2.out' }
         );
+
+        // Smooth scroll to results
+        setTimeout(() => {
+            const grid = document.getElementById('vault-grid');
+            if (grid) {
+                const yOffset = -100; // Account for floating capsule navbar
+                const y = grid.getBoundingClientRect().top + window.scrollY + yOffset;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+        }, 100);
     }, [filters]);
 
     const handleDownload = async (paper) => {
@@ -230,46 +241,64 @@ export default function Archive() {
     return (
         <div ref={container} className="flex flex-col w-full bg-[#050505] relative">
 
-            {/* ── Hero Section ── */}
-            <section className="w-full h-screen flex flex-col items-center justify-center text-center px-6 relative">
-                <div className="absolute inset-0 bg-blue-500/5 blur-[120px] rounded-full opacity-30 pointer-events-none mx-auto max-w-4xl max-h-4xl"></div>
-
-                <div className="flex flex-col items-center justify-center mt-auto">
-                    <h2 className="hero-elem text-blue-500 text-[10px] md:text-xs uppercase tracking-[0.8em] mb-8 font-bold opacity-0 translate-y-10">
-                        The Archival Vault
-                    </h2>
-                    <h1 className="hero-elem text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter mb-6 opacity-0 translate-y-10">
-                        Download the <span className="italic font-light text-gray-500">PYQs.</span>
+            {/* ── App Header ── */}
+            <section className="w-full bg-[#050505] min-h-screen pt-28 md:pt-32">
+                <div className="max-w-[1400px] mx-auto px-4 md:px-12 flex flex-col mb-4 relative">
+                    <div className="absolute top-0 left-1/4 bg-white/5 blur-[100px] w-64 h-64 rounded-full pointer-events-none"></div>
+                    
+                    <h1 className="hero-elem text-4xl md:text-6xl font-black tracking-tighter text-white mb-2 opacity-0 translate-y-4">
+                        Download PYQs.
                     </h1>
-                    <p className="hero-elem text-gray-400 max-w-xl mx-auto text-sm md:text-base tracking-widest leading-relaxed opacity-0 translate-y-10">
-                        ACCUMULATING DECADES OF ACADEMIC KNOWLEDGE INTO A SINGLE, HIGH-VELOCITY QUERY ENGINE EXCLUSIVE FOR PROTOCOL MEMBERS.
+                    <p className="hero-elem text-gray-500 text-sm md:text-base font-medium opacity-0 translate-y-4">
+                        Search and download previous year question papers.
                     </p>
                 </div>
 
-                <button
-                    onClick={handleScroll}
-                    className="hero-elem opacity-0 translate-y-10 bg-transparent text-gray-500 hover:text-white px-10 py-5 text-[10px] md:text-xs font-bold uppercase tracking-[0.4em] transition-colors flex items-center gap-3 mt-auto mb-32 group"
-                >
-                    Scroll to Initialize <ArrowDown className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
-                </button>
-            </section>
-
-            {/* ── Exploration Area ── */}
-            <section id="vault-explorer" className="w-full bg-[#050505] min-h-screen border-t border-white/5 pt-20">
-                <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex flex-col md:flex-row gap-12 lg:gap-24 relative">
+                <div className="max-w-[1400px] mx-auto px-4 md:px-12 flex flex-col md:flex-row gap-6 md:gap-12 lg:gap-24 relative">
 
                     {/* ── Left Sidebar — Filters ── */}
+                    {/* Background Overlay for Mobile */}
+                    {isMobileFilterOpen && (
+                        <div 
+                            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-200"
+                            onClick={() => setIsMobileFilterOpen(false)}
+                        />
+                    )}
+
                     <aside
-                        className="w-full md:w-64 shrink-0 mb-12 md:mb-0 filter-text relative z-10 block"
+                        className={`w-full md:w-64 shrink-0 filter-text relative z-50 block 
+                                     fixed inset-x-0 bottom-0 md:static
+                                     bg-[#0a0a0a] md:bg-transparent
+                                     rounded-t-3xl md:rounded-none
+                                     border-t border-white/10 md:border-0
+                                     p-6 md:p-0
+                                     transform transition-transform duration-300 ease-out
+                                     max-h-[85vh] md:max-h-none overflow-y-auto md:overflow-visible
+                                     ${isMobileFilterOpen ? 'translate-y-0 shadow-[0_-20px_50px_rgba(0,0,0,0.8)]' : 'translate-y-full md:translate-y-0'}
+                                   `}
                         onMouseEnter={ensureFilterOptions}
                         onFocus={ensureFilterOptions}
                         onTouchStart={ensureFilterOptions}
                     >
+                        {/* Drag Handle & Close Button for Mobile */}
+                        <div className="md:hidden flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+                            <h3 className="text-sm font-black text-white uppercase tracking-[0.15em]">Filter Protocol</h3>
+                            <button 
+                                onClick={() => setIsMobileFilterOpen(false)}
+                                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
                         <div className="sticky top-24 flex flex-col gap-6">
-                            <h3 className="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-[0.15em]">Filter Protocol</h3>
+                            <h3 className="hidden md:block text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-[0.15em]">Filter Protocol</h3>
 
                             <button
-                                onClick={handleApplyFilters}
+                                onClick={() => {
+                                    handleApplyFilters();
+                                    if (window.innerWidth < 768) setIsMobileFilterOpen(false);
+                                }}
                                 disabled={loading}
                                 className="w-full mb-2 bg-transparent hover:bg-blue-600/5 text-blue-500 border border-blue-500/20 hover:border-blue-500/40 px-8 py-4 rounded-xl text-[10px] md:text-xs uppercase tracking-[0.15em] font-black transition-all flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -295,7 +324,7 @@ export default function Archive() {
                                             value={filters[f.id] ?? ''}
                                             onChange={e => handleFilterChange(f.id, e.target.value)}
                                             disabled={loadingFilters}
-                                            className="appearance-none w-full cursor-pointer bg-[#0a0a0a] hover:bg-[#111] px-4 py-4 pr-10 border-b border-white/5 hover:border-white/20 transition-all text-[9px] md:text-[10px] uppercase tracking-[0.15em] font-bold text-gray-300 focus:outline-none focus:border-blue-500/50 [&>option]:bg-[#050505]"
+                                            className="appearance-none w-full cursor-pointer bg-transparent hover:bg-white/[0.02] px-4 py-4 pr-10 border-b border-white/5 hover:border-white/20 transition-colors text-[9px] md:text-[10px] uppercase tracking-[0.15em] font-bold text-gray-400 focus:outline-none focus:border-blue-500/50 [&>option]:bg-[#050505]"
                                             style={{ WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: 'none' }}
                                         >
                                             <option value="" className="bg-[#050505] text-gray-500">
@@ -315,29 +344,46 @@ export default function Archive() {
                     {/* ── Right Side — Results Grid ── */}
                     <main id="vault-grid" className="flex-1 flex flex-col pb-32">
                         <div className="flex items-center justify-between px-2 pb-6 border-b border-white/5 mb-6">
-                            <h3 className="text-[17px] md:text-xl font-black text-white px-2 tracking-tight">
-                                Archived Resources
-                            </h3>
-                            {fetched && (
-                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                                    {papers.length} result{papers.length !== 1 ? 's' : ''}
-                                </span>
-                            )}
+                            <div className="flex flex-col">
+                                <h3 className="text-[17px] md:text-xl font-black text-white tracking-tight">
+                                    Archived Resources
+                                </h3>
+                                {fetched && (
+                                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                                        {papers.length} result{papers.length !== 1 ? 's' : ''}
+                                    </span>
+                                )}
+                            </div>
+                            
+                            {/* Mobile Filter Toggle */}
+                            <button 
+                                onClick={() => {
+                                    ensureFilterOptions();
+                                    setIsMobileFilterOpen(true);
+                                }}
+                                className="md:hidden flex items-center gap-2 bg-[#111] hover:bg-[#1a1a1a] border border-white/10 px-4 py-2.5 rounded-xl transition-colors text-[10px] font-bold uppercase tracking-widest text-white shadow-lg active:scale-95"
+                            >
+                                <Settings2 className="w-4 h-4 text-blue-500" />
+                                Filters
+                            </button>
                         </div>
 
                         {/* ── Loading Skeleton ── */}
                         {loading && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
-                                {Array.from({ length: 8 }).map((_, i) => (
-                                    <div key={i} className="flex flex-col bg-[#0a0a0a] border border-white/5 rounded-xl overflow-hidden animate-pulse">
-                                        <div className="w-full aspect-[3/4] bg-white/[0.03]" />
-                                        <div className="p-4 flex flex-col gap-3">
-                                            <div className="h-3 bg-white/[0.05] rounded w-3/4" />
-                                            <div className="h-2 bg-white/[0.03] rounded w-1/2" />
+                            <>
+                                <style>{`
+                                    @keyframes shimmer {
+                                        100% { transform: translateX(100%); }
+                                    }
+                                `}</style>
+                                <div className="flex flex-col w-full">
+                                    {Array.from({ length: 10 }).map((_, i) => (
+                                        <div key={i} className="relative border-b border-white/5 h-[76px] w-full overflow-hidden">
+                                            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.03] to-transparent" style={{ animation: 'shimmer 2s infinite ease-in-out', animationDelay: `${i * 0.1}s` }} />
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            </>
                         )}
 
                         {/* ── Empty State (before first fetch) ── */}
@@ -366,56 +412,54 @@ export default function Archive() {
                             </div>
                         )}
 
-                        {/* ── Results Grid ── */}
+                        {/* ── Results List ── */}
                         {!loading && papers.length > 0 && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
+                            <div className="flex flex-col w-full">
                                 {papers.map(doc => (
                                     <div
                                         key={doc.id}
                                         onClick={() => handleViewPaper(doc)}
-                                        className="group flex flex-col bg-[#050505] border border-white/5 rounded-xl paper-card transition-all duration-300 ease-out cursor-pointer relative hover:bg-[#0a0a0a]"
+                                        className="group relative w-full border-b border-white/5 paper-card transition-colors duration-200 ease-out cursor-pointer hover:bg-white/[0.02]"
                                     >
-                                        {/* Thumbnail Area */}
-                                        <div className="w-full aspect-[3/4] bg-[#0a0a0a] relative p-4 flex items-center justify-center border border-transparent border-b-white/5 overflow-hidden rounded-t-xl group-hover:border-white/50 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.15)] transition-all duration-300 ease-out z-10 w-full">
-                                            {/* Top right - Loading Indicator */}
-                                            {loadingView && viewingPaper?.id === doc.id && (
-                                                <div className="absolute top-3 right-3 z-20">
-                                                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                                        <div className="flex flex-row items-center py-3.5 sm:py-4 gap-4 md:gap-6">
+                                            {/* Flat Icon */}
+                                            <div className="w-8 md:w-10 h-8 md:h-10 shrink-0 flex items-center justify-center relative">
+                                                {loadingView && viewingPaper?.id === doc.id ? (
+                                                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                                                ) : (
+                                                    <FileText className="w-5 md:w-6 h-5 md:h-6 text-gray-600" />
+                                                )}
+                                            </div>
+                                            
+                                            {/* Content Area */}
+                                            <div className="flex-1 flex flex-col min-w-0 justify-center">
+                                                <div className="flex items-baseline gap-3 mb-1">
+                                                    <span className="px-2 py-[2px] rounded text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] bg-white/5 text-gray-300 border border-white/10 backdrop-blur-md shadow-[0_0_10px_rgba(255,255,255,0.02)]">
+                                                        {doc.exam_type}
+                                                    </span>
+                                                    <span className="text-[10px] md:text-xs text-gray-500 font-bold tracking-widest uppercase">
+                                                        {doc.year}
+                                                    </span>
                                                 </div>
-                                            )}
-
-                                            <div className="absolute top-3 left-3 bg-[#1a1a1a] text-gray-300 border border-white/5 text-[8px] font-bold px-2 py-1 rounded shadow-md z-10 uppercase tracking-widest">
-                                                PDF
-                                            </div>
-                                            <div className="w-[65%] h-[80%] bg-[#111] border border-white/5 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-500 ease-out">
-                                                <FileText className="w-8 h-8 text-white/10 group-hover:text-blue-500/30 transition-colors" />
-                                            </div>
-                                        </div>
-
-                                        {/* Card Content */}
-                                        <div className="flex flex-col p-4 grow">
-                                            <h4 className="text-[14px] font-bold text-white leading-tight mb-1.5 line-clamp-2 group-hover:text-blue-400 transition-colors">
-                                                {doc.subject}
-                                            </h4>
-                                            <span className="text-[10px] text-gray-500 font-medium mb-1">
-                                                {doc.degree} • {doc.branch}
-                                            </span>
-                                            <span className="text-[10px] text-gray-600 font-medium mb-auto">
-                                                {doc.college}
-                                            </span>
-
-                                            <div className="flex items-center justify-between mt-6">
-                                                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-                                                    {doc.exam_type} • {doc.year}
+                                                <h4 className="text-[14px] md:text-base font-bold text-white leading-tight mb-0.5 truncate group-hover:text-blue-400 transition-colors">
+                                                    {doc.subject}
+                                                </h4>
+                                                <span className="truncate text-[10px] md:text-xs text-gray-500 font-medium tracking-wide">
+                                                    {doc.degree} • {doc.branch} <span className="hidden md:inline">• {doc.college}</span>
                                                 </span>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={(e) => handleBookmark(e, doc.id)}
-                                                        className={`transition-colors p-1 ${savedIds.has(doc.id) ? 'text-blue-400' : 'text-gray-600 hover:text-white'}`}
-                                                        title={savedIds.has(doc.id) ? 'Unsave paper' : 'Save paper'}
-                                                    >
-                                                        <Bookmark className={`w-4 h-4 ${savedIds.has(doc.id) ? 'fill-current' : ''}`} />
-                                                    </button>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="shrink-0 flex items-center gap-2 pl-4">
+                                                <button
+                                                    onClick={(e) => handleBookmark(e, doc.id)}
+                                                    className={`transition-colors p-2 rounded-full ${savedIds.has(doc.id) ? 'text-blue-400' : 'bg-transparent text-gray-500 hover:text-white'}`}
+                                                    title={savedIds.has(doc.id) ? 'Unsave paper' : 'Save paper'}
+                                                >
+                                                    <Bookmark className={`w-4 md:w-5 h-4 md:h-5 ${savedIds.has(doc.id) ? 'fill-current' : ''}`} />
+                                                </button>
+                                                <div className="w-8 md:w-10 h-8 md:h-10 rounded-full flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                                                    <ChevronRight className="w-4 md:w-5 h-4 md:h-5 text-gray-500 group-hover:text-white transition-colors" />
                                                 </div>
                                             </div>
                                         </div>

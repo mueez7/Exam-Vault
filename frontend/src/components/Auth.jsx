@@ -208,10 +208,10 @@ export default function Auth() {
                                 className="md:hidden w-12 h-12 mb-6 object-contain"
                             />
                             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter mb-2">
-                                {isLogin ? 'Welcome Back.' : 'Join the Vault.'}
+                                {isLogin ? 'Welcome Back' : 'Create an Account'}
                             </h1>
                             <p className="text-sm text-gray-500 font-medium tracking-wide max-w-sm">
-                                {isLogin ? 'Authenticate to access the engineering archives.' : 'Create an account to browse historical exam data.'}
+                                {isLogin ? 'Log in to access your account.' : 'Sign up to get started.'}
                             </p>
                         </div>
 
@@ -264,8 +264,8 @@ export default function Auth() {
 
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-center pr-1">
-                                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1">Protocol Key</label>
-                                        {isLogin && <a href="#" className="text-[10px] text-blue-500 hover:text-white transition-colors font-bold tracking-wider">LOST KEY?</a>}
+                                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1">Password</label>
+                                        {isLogin && <a href="#" className="text-[10px] text-blue-500 hover:text-white transition-colors font-bold tracking-wider">Forgot Password?</a>}
                                     </div>
                                     <div className="relative">
                                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
@@ -292,7 +292,7 @@ export default function Auth() {
                                         <Loader2 className="w-4 h-4 animate-spin text-black" />
                                     ) : (
                                         <>
-                                            {isLogin ? 'Initialize Session' : 'Create Access Key'}
+                                            {isLogin ? 'Log In' : 'Sign Up'}
                                             <ArrowRight className="w-4 h-4" />
                                         </>
                                     )}
@@ -302,7 +302,7 @@ export default function Auth() {
 
                         {/* Toggle Mode */}
                         <div className="mt-8 text-center animate-in fade-in slide-in-from-bottom-2 duration-1000 delay-1000 md:text-left text-sm text-gray-500 font-medium pl-1">
-                            {isLogin ? "Don't have clearance yet?" : "Already part of the database?"}{" "}
+                            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
                             <button
                                 onClick={() => {
                                     setIsLogin(!isLogin);
@@ -311,7 +311,7 @@ export default function Auth() {
                                 }}
                                 className="text-white font-bold hover:text-blue-500 transition-colors ml-1"
                             >
-                                {isLogin ? 'Request Access' : 'Authenticate Now'}
+                                {isLogin ? 'Sign Up' : 'Log In'}
                             </button>
                         </div>
 

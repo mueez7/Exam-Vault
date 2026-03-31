@@ -4,12 +4,12 @@ import { Github, Twitter, Disc as Discord, Mail, ArrowUpRight } from 'lucide-rea
 
 export default function Footer() {
     return (
-        <footer className="w-full bg-[#030303] border-t border-white/5 pt-32 pb-12 px-6 md:px-12 relative overflow-hidden">
+        <footer className="w-full bg-transparent border-t border-white/5 pt-16 md:pt-20 pb-8 px-6 md:px-12 relative overflow-hidden backdrop-blur-md">
 
             {/* Background Aesthetic element */}
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[150px] -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
 
-            <div className="max-w-7xl mx-auto flex flex-col gap-24 relative z-10">
+            <div className="max-w-7xl mx-auto flex flex-col gap-12 md:gap-16 relative z-10">
 
                 {/* Top Massive Typography Area */}
                 <div className="flex flex-col md:flex-row justify-between items-center gap-10">
@@ -32,7 +32,7 @@ export default function Footer() {
                 </div>
 
                 {/* Grid Links Section */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-12 pt-16 border-t border-white/5">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 pt-12 border-t border-white/5">
 
                     {/* Navigation Column */}
                     <div className="flex flex-col gap-6">
@@ -92,7 +92,7 @@ export default function Footer() {
                 </div>
 
                 {/* Bottom Bar */}
-                <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-12 border-t border-white/5">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-white/5">
                     <p className="text-[10px] uppercase tracking-[0.4em] text-gray-600 font-bold">
                         &copy; 2026 ExamVault Subsystems. All Rights Reserved.
                     </p>

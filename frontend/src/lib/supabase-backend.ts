@@ -480,9 +480,19 @@ export async function fetchVaultMetrics(): Promise<VaultMetrics> {
         byExamType: groupBy('exam_type'),
         byBranch: groupBy('branch'),
     };
+}// ─────────────────────────────────────────────────────────────────────────────
+// 9. Website Traffic Logging
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function logPageVisit(path: string) {
+    try {
+        let visitorId = localStorage.getItem('ev_visitor_id');
+        if (!visitorId) {
+            visitorId = crypto.randomUUID();
+            localStorage.setItem('ev_visitor_id', visitorId);
+        }
+        await supabase.from('site_traffic').insert({ visitor_id: visitorId, path });
+    } catch (e) {
+        // Silently fail if tracker is blocked or table missing
+    }
 }
-
-
-
-
-

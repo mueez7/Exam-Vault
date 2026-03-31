@@ -40,7 +40,7 @@ export default function Navbar() {
 
                     <div className="flex items-center gap-4 ml-4">
                         {isAdmin && (
-                            <Link to="/admin" className="bg-white text-black text-[10px] md:text-xs font-black uppercase px-6 py-2.5 md:px-8 md:py-3.5 tracking-widest hover:scale-105 hover:bg-gray-100 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all text-center rounded-sm">
+                            <Link to="/admin" className="bg-white text-black text-[10px] md:text-xs font-black uppercase px-6 py-2.5 md:px-8 md:py-3.5 tracking-widest hover:scale-105 hover:bg-gray-100 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all text-center rounded-full">
                                 Admin Portal
                             </Link>
                         )}
@@ -71,7 +71,7 @@ export default function Navbar() {
                                 </button>
                             </div>
                         ) : location.pathname !== '/login' ? (
-                            <Link to="/login" className="bg-white text-black text-[10px] md:text-xs font-black uppercase px-6 py-2 md:px-8 md:py-3 tracking-widest hover:scale-105 hover:bg-gray-100 transition-all text-center rounded-sm">
+                            <Link to="/login" className="bg-white text-black text-[10px] md:text-xs font-black uppercase px-6 py-2 md:px-8 md:py-3 tracking-widest hover:scale-105 hover:bg-gray-100 transition-all text-center rounded-full">
                                 Login
                             </Link>
                         ) : null}
@@ -82,14 +82,14 @@ export default function Navbar() {
 
             {/* Fullscreen Mobile Menu Overlay */}
             {isMobileMenuOpen && (
-                <div className="fixed inset-0 z-[60] bg-[#050505]/98 backdrop-blur-3xl md:hidden flex flex-col items-center justify-center transition-all">
+                <div className="fixed inset-0 z-[60] bg-[#050505]/90 backdrop-blur-3xl md:hidden flex flex-col items-center justify-center transition-all">
                     <button 
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="absolute top-6 right-6 p-3 text-gray-500 hover:text-white bg-white/5 border border-white/10 rounded-full transition-colors shadow-2xl"
                     >
                         <X className="w-5 h-5" />
                     </button>
-                    <div className="flex flex-col items-center gap-10 text-center text-sm uppercase tracking-[0.4em] font-black text-gray-500">
+                    <div className="flex flex-col items-center gap-8 text-center text-xs uppercase tracking-[0.4em] font-black text-gray-500">
                         <Link to="/" className={`hover:text-white hover:scale-110 transition-all ${location.pathname === '/' ? 'text-white' : ''}`}>Home</Link>
                         {user && (
                             <>

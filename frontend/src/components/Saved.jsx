@@ -97,32 +97,20 @@ export default function Saved() {
     return (
         <div ref={container} className="flex flex-col w-full bg-[#050505] relative">
 
-            {/* Hero Section */}
-            <section className="w-full h-screen flex flex-col items-center justify-center text-center px-6 relative">
-                <div className="absolute inset-0 bg-blue-500/5 blur-[120px] rounded-full opacity-30 pointer-events-none mx-auto max-w-4xl max-h-4xl" />
-
-                <div className="flex flex-col items-center justify-center mt-auto">
-                    <h2 className="hero-elem text-blue-500 text-[10px] md:text-xs uppercase tracking-[0.8em] mb-8 font-bold opacity-0 translate-y-10">
-                        The Saved Vault
-                    </h2>
-                    <h1 className="hero-elem text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter mb-6 opacity-0 translate-y-10">
-                        Your <span className="italic font-light text-gray-500">Saved.</span>
+            <section className="w-full bg-[#050505] pb-8 pt-28 md:pt-32">
+                <div className="max-w-[1400px] mx-auto px-4 md:px-12 flex flex-col relative">
+                    <div className="absolute top-0 right-1/4 bg-blue-500/10 blur-[100px] w-64 h-64 rounded-full pointer-events-none"></div>
+                    <h1 className="hero-elem text-4xl md:text-6xl font-black tracking-tighter text-white mb-2 opacity-0 translate-y-4">
+                        Saved Papers.
                     </h1>
-                    <p className="hero-elem text-gray-400 max-w-xl mx-auto text-sm md:text-base tracking-widest leading-relaxed opacity-0 translate-y-10">
-                        ALL YOUR BOOKMARKED ACADEMIC PAPERS, RETRIEVED INSTANTLY.
+                    <p className="hero-elem text-gray-500 text-sm md:text-base font-medium opacity-0 translate-y-4">
+                        All your bookmarked documents instantly retrieved.
                     </p>
                 </div>
-
-                <button
-                    onClick={handleScroll}
-                    className="hero-elem opacity-0 translate-y-10 bg-transparent text-gray-500 hover:text-white px-10 py-5 text-[10px] md:text-xs font-bold uppercase tracking-[0.4em] transition-colors flex items-center gap-3 mt-auto mb-32 group"
-                >
-                    Scroll to Initialize <ArrowDown className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
-                </button>
             </section>
 
-            {/* Saved Papers Grid */}
-            <section id="vault-explorer" className="w-full bg-[#050505] min-h-screen border-t border-white/5 pt-20">
+            {/* Saved Papers List */}
+            <section id="vault-explorer" className="w-full bg-transparent min-h-[50vh]">
                 <div className="max-w-[1400px] mx-auto px-6 md:px-12 pb-32">
                     <div className="flex items-center justify-between px-2 pb-6 border-b border-white/5 mb-6">
                         <h3 className="text-[17px] md:text-xl font-black text-white px-2 tracking-tight">Saved Resources</h3>
@@ -134,15 +122,9 @@ export default function Saved() {
                     </div>
 
                     {loading && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
-                            {Array.from({ length: 4 }).map((_, i) => (
-                                <div key={i} className="flex flex-col bg-[#0a0a0a] border border-white/5 rounded-xl overflow-hidden animate-pulse">
-                                    <div className="w-full aspect-[3/4] bg-white/[0.03]" />
-                                    <div className="p-4 flex flex-col gap-3">
-                                        <div className="h-3 bg-white/[0.05] rounded w-3/4" />
-                                        <div className="h-2 bg-white/[0.03] rounded w-1/2" />
-                                    </div>
-                                </div>
+                        <div className="flex flex-col w-full">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="relative border-b border-white/5 h-[76px] w-full overflow-hidden animate-pulse bg-white/[0.01]" />
                             ))}
                         </div>
                     )}
@@ -157,59 +139,58 @@ export default function Saved() {
                     )}
 
                     {!loading && papers.length > 0 && (
-                        <div id="vault-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
+                        <div className="flex flex-col w-full mt-2">
                             {papers.map(doc => (
                                 <div
                                     key={doc.id}
                                     onClick={() => handleViewPaper(doc)}
-                                    className="group flex flex-col bg-[#050505] border border-white/5 rounded-xl paper-card transition-all duration-300 ease-out cursor-pointer relative hover:bg-[#0a0a0a]"
+                                    className="group relative w-full border-b border-white/5 paper-card transition-colors duration-200 ease-out cursor-pointer hover:bg-white/[0.02]"
                                 >
-                                    {/* Thumbnail */}
-                                    <div className="w-full aspect-[3/4] bg-[#0a0a0a] relative p-4 flex items-center justify-center border border-transparent border-b-white/5 overflow-hidden rounded-t-xl group-hover:border-white/50 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.15)] transition-all duration-300 ease-out z-10">
-                                        <div className="absolute top-3 left-3 bg-[#1a1a1a] text-gray-300 border border-white/5 text-[8px] font-bold px-2 py-1 rounded shadow-md z-10 uppercase tracking-widest">
-                                            PDF
+                                    <div className="flex flex-row items-center py-3.5 sm:py-4 gap-4 md:gap-6">
+                                        {/* Icon */}
+                                        <div className="w-8 md:w-10 h-8 md:h-10 shrink-0 flex items-center justify-center relative">
+                                            {viewingPaper?.id === doc.id ? (
+                                                <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                                            ) : (
+                                                <FileText className="w-5 md:w-6 h-5 md:h-6 text-gray-600" />
+                                            )}
                                         </div>
-                                        <div className="w-[65%] h-[80%] bg-[#111] border border-white/5 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-500 ease-out">
-                                            <FileText className="w-8 h-8 text-white/10 group-hover:text-blue-500/30 transition-colors" />
-                                        </div>
-                                    </div>
-
-                                    {/* Card Content */}
-                                    <div className="flex flex-col p-4 grow">
-                                        <h4 className="text-[14px] font-bold text-white leading-tight mb-1.5 line-clamp-2 group-hover:text-blue-400 transition-colors">
-                                            {doc.subject}
-                                        </h4>
-                                        <span className="text-[10px] text-gray-500 font-medium mb-1">
-                                            {doc.degree} • {doc.branch}
-                                        </span>
-                                        <span className="text-[10px] text-gray-600 font-medium mb-auto">
-                                            {doc.college}
-                                        </span>
-
-                                        <div className="flex items-center justify-between mt-6">
-                                            <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-                                                {doc.exam_type} • {doc.year}
-                                            </span>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDownload(doc); }}
-                                                    disabled={downloading === doc.id}
-                                                    title="Download PDF"
-                                                    className="text-gray-600 hover:text-blue-400 transition-colors disabled:opacity-40 p-1"
-                                                >
-                                                    {downloading === doc.id
-                                                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                                                        : <Download className="w-4 h-4" />
-                                                    }
-                                                </button>
-                                                <button
-                                                    onClick={(e) => handleUnsave(e, doc.id)}
-                                                    className="text-blue-400 hover:text-red-400 transition-colors p-1"
-                                                    title="Remove from saved"
-                                                >
-                                                    <Bookmark className="w-4 h-4 fill-current" />
-                                                </button>
+                                        
+                                        {/* Content */}
+                                        <div className="flex-1 flex flex-col min-w-0 justify-center">
+                                            <div className="flex items-baseline gap-3 mb-1">
+                                                <span className="px-2 py-[2px] rounded text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] bg-white/5 text-gray-300 border border-white/10 backdrop-blur-md shadow-[0_0_10px_rgba(255,255,255,0.02)]">
+                                                    {doc.exam_type}
+                                                </span>
+                                                <span className="text-[10px] md:text-xs text-gray-500 font-bold tracking-widest uppercase">
+                                                    {doc.year}
+                                                </span>
                                             </div>
+                                            <h4 className="text-[14px] md:text-base font-bold text-white leading-tight mb-0.5 truncate group-hover:text-blue-400 transition-colors">
+                                                {doc.subject}
+                                            </h4>
+                                            <span className="truncate text-[10px] md:text-xs text-gray-500 font-medium tracking-wide">
+                                                {doc.degree} • {doc.branch} <span className="hidden md:inline">• {doc.college}</span>
+                                            </span>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="shrink-0 flex items-center gap-2 pl-4">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDownload(doc); }}
+                                                disabled={downloading === doc.id}
+                                                className="text-gray-500 hover:text-white transition-colors disabled:opacity-40 p-2 rounded-full hover:bg-white/5"
+                                                title="Download PDF"
+                                            >
+                                                {downloading === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 md:w-5 h-4 md:h-5" />}
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleUnsave(e, doc.id)}
+                                                className="text-blue-400 hover:text-red-400 transition-colors p-2 rounded-full hover:bg-white/5"
+                                                title="Remove from saved"
+                                            >
+                                                <Bookmark className="w-4 md:w-5 h-4 md:h-5 fill-current" />
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

@@ -11,11 +11,14 @@ import Auth from './components/Auth';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 
+import { logPageVisit } from './lib/supabase-backend';
+
 function App() {
   const location = useLocation();
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    logPageVisit(location.pathname);
   }, [location.pathname]);
 
   return (

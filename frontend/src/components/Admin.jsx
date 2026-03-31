@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { UploadCloud, Database, Settings, Search, Plus, FileText, BarChart2, Loader2, Trash2, Eye, Download, X, CheckCircle, ChevronDown, Sparkles } from 'lucide-react';
+import { UploadCloud, Database, Settings, Search, Plus, FileText, BarChart2, Loader2, Trash2, Eye, Download, X, CheckCircle, ChevronDown, Sparkles, Users, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { fetchAllPapers, deletePaper, getSecureViewUrl, getSecureDownloadUrl, fetchPaperFilePath, fetchFilterOptions, fetchVaultMetrics, fetchRawFilterData } from '../lib/supabase-backend';
 
@@ -124,6 +124,11 @@ export default function Admin() {
     const [metrics, setMetrics] = useState(null);
     const [loadingMetrics, setLoadingMetrics] = useState(false);
 
+    // ── Users & Traffic State ────────────────────────────────────────────────
+    const [sysUsers, setSysUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const [trafficLogs, setTrafficLogs] = useState(null);
+
     // ── Normalize State ───────────────────────────────────────────────────────
     const [normalizing, setNormalizing] = useState(false);
     const [normalizeResult, setNormalizeResult] = useState(null);
@@ -146,9 +151,24 @@ export default function Admin() {
             fetchAllPapers('').then(data => { setPapers(data); setLoadingPapers(false); });
             fetchFilterOptions().then(setFilterOptions);
         }
-        if (activeTab === 'insights' && !metrics) {
+        if ((activeTab === 'insights' || activeTab === 'traffic') && !metrics) {
             setLoadingMetrics(true);
             fetchVaultMetrics().then(m => { setMetrics(m); setLoadingMetrics(false); });
+        }
+        if ((activeTab === 'insights' || activeTab === 'traffic') && !trafficLogs) {
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+            fetch(`${backendUrl}/api/admin/traffic`, { headers: { 'Authorization': `Bearer ${session?.access_token}` }})
+                .then(res => res.json())
+                .then(resData => setTrafficLogs(resData))
+                .catch(e => setTrafficLogs({ error: true }));
+        }
+        if (activeTab === 'users' && sysUsers.length === 0) {
+            setLoadingUsers(true);
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+            fetch(`${backendUrl}/api/admin/users`, { headers: { 'Authorization': `Bearer ${session?.access_token}` }})
+                .then(res => res.json())
+                .then(data => { setSysUsers(data.users || []); setLoadingUsers(false); })
+                .catch(() => setLoadingUsers(false));
         }
     }, [activeTab]);
 
@@ -315,7 +335,7 @@ export default function Admin() {
     };
 
     return (
-        <div className="flex flex-col w-full bg-[#050505] min-h-screen relative pt-12 text-white">
+        <div className="flex flex-col w-full bg-[#050505] min-h-screen relative pt-24 md:pt-32 pb-24 text-white">
             <div className="max-w-7xl mx-auto w-full px-6 md:px-12 flex flex-col md:flex-row gap-12 pb-32">
 
                 {/* Admin Sidebar */}
@@ -327,8 +347,10 @@ export default function Admin() {
                     <nav className="flex flex-col gap-2">
                         {[
                             { id: 'upload', icon: UploadCloud, label: 'Upload Node' },
+                            { id: 'users', icon: Users, label: 'User Registry' },
                             { id: 'manage', icon: Database, label: 'Data Core' },
                             { id: 'insights', icon: BarChart2, label: 'Insights' },
+                            { id: 'traffic', icon: Activity, label: 'Traffic & Metrics' },
                             { id: 'settings', icon: Settings, label: 'Config' },
                         ].map(tab => (
                             <button
@@ -580,7 +602,7 @@ export default function Admin() {
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
                                             <FileText className="w-3.5 h-3.5 text-gray-600 shrink-0" />
-                                            <span className="text-xs font-bold text-white truncate">{paper.subject}</span>
+                                            <span className="text-sm md:text-base font-bold text-white truncate">{paper.subject}</span>
                                         </div>
                                         <span className="text-[10px] text-gray-500 whitespace-nowrap">{paper.college}</span>
                                         <span className="text-[10px] text-gray-500 whitespace-nowrap">{paper.degree} / {paper.branch}</span>
@@ -696,6 +718,97 @@ export default function Admin() {
                                     </>
                                 );
                             })()}
+                        </div>
+                    )}
+
+                    {/* ── USERS TAB ──────────────────────────────────────────────────────── */}
+                    {activeTab === 'users' && (
+                        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div>
+                                <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-2">User Registry.</h1>
+                                <p className="text-sm text-gray-500 font-medium tracking-wide">Monitor registered users and system access.</p>
+                            </div>
+                            
+                            <div className="border border-white/5 rounded-2xl bg-[#080808] overflow-hidden">
+                                <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-4 px-5 py-4 border-b border-white/5 bg-[#050505]">
+                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">ID</span>
+                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Name</span>
+                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Email</span>
+                                    <span className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Joined</span>
+                                </div>
+                                {loadingUsers && <div className="p-8 text-center text-sm text-gray-500 font-bold uppercase tracking-widest flex items-center justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin"/> Loading...</div>}
+                                {!loadingUsers && sysUsers.map((u, i) => (
+                                    <div key={u.id} className={`grid grid-cols-[auto_1fr_1fr_auto] gap-4 items-center px-5 py-4 border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors ${i % 2 === 0 ? '' : 'bg-white/[0.01]'}`}>
+                                        <span className="text-sm text-gray-500 font-medium font-mono">{u.id.substring(0,8)}</span>
+                                        <span className="text-sm md:text-base font-bold text-white truncate">{u.displayName}</span>
+                                        <span className="text-xs md:text-sm text-gray-400 truncate">{u.email}</span>
+                                        <span className="text-xs md:text-sm text-gray-500 font-medium">{new Date(u.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── TRAFFIC TAB ──────────────────────────────────────────────────────── */}
+                    {activeTab === 'traffic' && (
+                        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div>
+                                <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-2">Traffic & Metrics.</h1>
+                                <p className="text-sm text-gray-500 font-medium tracking-wide">Monitor website visits, downloads, and user engagement.</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center">
+                                    <h3 className="text-xs uppercase font-black tracking-[0.25em] text-gray-500 mb-2">Total Downloads</h3>
+                                    <span className="text-5xl font-black text-white">{metrics?.totalViews || 0}</span>
+                                    <span className="text-[10px] text-gray-500 mt-2 uppercase tracking-widest leading-relaxed">Across {metrics?.totalPapers || 0} Papers</span>
+                                </div>
+                                
+                                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 flex flex-col items-center justify-center">
+                                    <h3 className="text-xs uppercase font-black tracking-[0.25em] text-gray-500 mb-2">Total Website Hits</h3>
+                                    <span className="text-5xl font-black text-white">{trafficLogs?.totals?.hits || 0}</span>
+                                    <span className="text-[10px] text-gray-500 mt-2 uppercase tracking-widest">{trafficLogs?.totals?.uniqueVisitors || 0} Unique Visitors</span>
+                                </div>
+                            </div>
+                            
+                            {trafficLogs && trafficLogs.dailyVisits ? (
+                                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 mb-4">
+                                    <div className="flex items-center justify-between mb-5">
+                                        <h3 className="text-[10px] uppercase font-black tracking-[0.25em] text-gray-500">Daily Website Traffic (Last 30 Days)</h3>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Hits</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-green-500" />
+                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Unique</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-end gap-1 h-32 overflow-hidden border-b border-white/5 pb-2">
+                                        {trafficLogs.dailyVisits.length === 0 && <p className="text-[10px] text-gray-600 uppercase tracking-widest font-bold self-center mx-auto text-center">No traffic logged yet.</p>}
+                                        {trafficLogs.dailyVisits.map((day, idx) => {
+                                            const maxHits = Math.max(...trafficLogs.dailyVisits.map(d => d.hits), 1);
+                                            const height = (day.hits / maxHits) * 100;
+                                            return (
+                                                <div key={day.date} className="flex-1 flex flex-col items-center justify-end gap-2 group relative">
+                                                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black border border-white/10 px-2 py-1 rounded text-[9px] text-white font-bold whitespace-nowrap z-10 pointer-events-none">
+                                                        {day.date} • {day.hits} hits / {day.visitors} uniq
+                                                    </div>
+                                                    <div className="w-full bg-blue-500/20 hover:bg-blue-500/80 rounded-t-sm transition-colors" style={{ height: `${height}%`, minHeight: '4px' }} />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-[#0a0a0a] border border-amber-500/10 rounded-2xl p-8 text-center flex flex-col items-center justify-center">
+                                    <Activity className="w-8 h-8 text-amber-500 mb-4" />
+                                    <p className="text-amber-500 text-xs font-bold uppercase tracking-widest mb-2">Tracking Not Active</p>
+                                    <p className="text-[10px] text-gray-400 max-w-sm">Traffic data could not be loaded. Please ensure you have run the <span className="text-blue-500">create_site_traffic.sql</span> migration in your Supabase dashboard.</p>
+                                </div>
+                            )}
                         </div>
                     )}
 

@@ -234,4 +234,67 @@ router.post('/normalize', requireAdmin, async (req, res) => {
     }
 });
 
+// Fetch Users from Supabase Auth
+router.get('/users', requireAdmin, async (req, res) => {
+    try {
+        // Must have supabaseServiceKey set to query users globally
+        const { data: { users }, error } = await supabase.auth.admin.listUsers();
+        if (error) return res.status(500).json({ error: error.message });
+
+        const mappedUsers = users.map(u => ({
+            id: u.id,
+            email: u.email,
+            displayName: u.user_metadata?.display_name || 'Anonymous',
+            created_at: u.created_at,
+            last_sign_in_at: u.last_sign_in_at
+        })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        res.json({ success: true, count: mappedUsers.length, users: mappedUsers });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch users: ' + err.message });
+    }
+});
+
+// Fetch Daily Visits & Traffic Logs
+router.get('/traffic', requireAdmin, async (req, res) => {
+    try {
+        const { data: logs, error } = await supabase
+            .from('site_traffic')
+            .select('path, created_at, visitor_id')
+            .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()); // Last 30 days
+
+        if (error) return res.status(500).json({ error: error.message });
+
+        // Aggregate by day
+        const grouped = {};
+        let totalVisits = 0;
+        let uniqueVisitors = new Set();
+
+        (logs || []).forEach(log => {
+            const dateStr = log.created_at.split('T')[0];
+            if (!grouped[dateStr]) grouped[dateStr] = { visitors: new Set(), hits: 0 };
+            grouped[dateStr].hits++;
+            if (log.visitor_id) grouped[dateStr].visitors.add(log.visitor_id);
+            
+            totalVisits++;
+            if (log.visitor_id) uniqueVisitors.add(log.visitor_id);
+        });
+
+        // Convert the set counts to integers into array sorted by date
+        let dailyVisits = Object.keys(grouped).sort().map(d => ({
+            date: d,
+            visitors: grouped[d].visitors.size,
+            hits: grouped[d].hits
+        }));
+
+        res.json({ 
+            success: true, 
+            dailyVisits, 
+            totals: { hits: totalVisits, uniqueVisitors: uniqueVisitors.size } 
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch traffic: ' + err.message });
+    }
+});
+
 export default router;

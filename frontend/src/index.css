@@ -5,6 +5,9 @@
 @layer base {
   body {
     @apply bg-[#050505] text-[#ffffff] font-grotesk overflow-x-hidden;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: center center;
   }
   
   /* Modern Dark Scrollbar Global */

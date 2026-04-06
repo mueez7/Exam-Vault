@@ -897,7 +897,7 @@ export default function Admin() {
                                     <Loader2 className="w-8 h-8 text-white/10 animate-spin" />
                                 </div>
                                 <iframe
-                                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewUrl)}&embedded=true`}
+                                    src={`/pdfjs/minimal.html?file=${encodeURIComponent(viewUrl)}`}
                                     title={`${viewingPaper.subject} - Mobile`}
                                     className="relative w-full h-full border-none md:hidden z-10"
                                 />

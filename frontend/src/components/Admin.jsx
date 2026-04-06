@@ -897,9 +897,14 @@ export default function Admin() {
                                     <Loader2 className="w-8 h-8 text-white/10 animate-spin" />
                                 </div>
                                 <iframe
+                                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewUrl)}&embedded=true`}
+                                    title={`${viewingPaper.subject} - Mobile`}
+                                    className="relative w-full h-full border-none md:hidden z-10"
+                                />
+                                <iframe
                                     src={`${viewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
                                     title={viewingPaper.subject}
-                                    className="relative w-full h-full border-none"
+                                    className="relative w-full h-full border-none hidden md:block z-10"
                                     style={{ colorScheme: 'dark' }}
                                 />
                             </div>

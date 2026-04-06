@@ -547,30 +547,18 @@ function PdfViewerModal({ viewingPaper, viewUrl, downloading, onDownload, onClos
 
                     {/* ── PDF Frame ── */}
                     <div className="flex-1 relative bg-[#111] min-h-0">
-                        {/* ── Mobile Fallback (Hidden on PC) ── */}
-                        <div className="md:hidden absolute inset-0 z-30 flex flex-col items-center justify-center p-8 text-center bg-[#111]">
-                            <FileText className="w-16 h-16 text-blue-500/20 mb-6" />
-                            <h4 className="text-white text-base font-black tracking-tight mb-2">Native PDF Viewer</h4>
-                            <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-8 leading-relaxed max-w-[250px]">
-                                Mobile browsers restrict inline document rendering.
-                            </p>
-                            <a
-                                href={viewUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-colors shadow-[0_0_20px_rgba(37,99,235,0.2)] flex items-center gap-3"
-                            >
-                                Read Document <ExternalLink className="w-4 h-4" />
-                            </a>
-                        </div>
-                        
-                        <div className="absolute inset-0 flex items-center justify-center hidden md:flex">
+                        <div className="absolute inset-0 flex items-center justify-center">
                             <Loader2 className="w-8 h-8 text-white/10 animate-spin" />
                         </div>
                         <iframe
+                            src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewUrl)}&embedded=true`}
+                            title={`${viewingPaper.subject} - Mobile`}
+                            className="relative w-full h-full border-none md:hidden z-10"
+                        />
+                        <iframe
                             src={`${viewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
                             title={viewingPaper.subject}
-                            className="relative w-full h-full border-none hidden md:block"
+                            className="relative w-full h-full border-none hidden md:block z-10"
                             style={{ colorScheme: 'dark' }}
                         />
                     </div>
